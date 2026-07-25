@@ -55,19 +55,6 @@ Compose is the only orchestrator. No Nx, no Turborepo — those solve JavaScript
 
 Users don't write a program, they write a function. A harness the platform controls imports that function, runs it against each test case, and prints a single JSON document to stdout. The parent process reads stdout and never trusts anything else — not exit codes alone, not stderr, not files the container claims to have written.
 
-## Status
-
-**July 2026 — early.** Nothing is running yet. The executor is being built first, in isolation, before any API or front-end exists.
-
-- [ ] Spawn an ephemeral container from Python, run fixed code, capture output
-- [ ] Test harness that runs a function against test cases and emits a verdict
-- [ ] Security limits, each with a test that performs the attack it blocks
-- [ ] HTTP contract between API and executor
-- [ ] C# API — users, problems, submissions, progress
-- [ ] Front-end
-
-Built one piece at a time, each working in isolation before anything connects to it.
-
 ## Stack
 
 | Component | Choice |
@@ -82,3 +69,5 @@ Built one piece at a time, each working in isolation before anything connects to
 ## Scope
 
 This is a portfolio and learning project, not a product. It is built to demonstrate polyglot service architecture and safe execution of untrusted code, and it is optimized for those goals rather than for scale or feature breadth.
+
+It is built one piece at a time, each working in isolation before anything connects to it.
