@@ -1,5 +1,6 @@
 import json
 from collections.abc import Sequence
+from typing import Any
 
 from executor.limits import Limits
 from executor.sandbox import run_sandbox
@@ -13,7 +14,7 @@ def judge(
 ) -> JudgedSubmission:
     emitted = run_sandbox(_payload(solution, test_cases), limits)
     return JudgedSubmission(
-        test_case_results=_read_test_case_results(emitted),
+        test_case_results=_read_test_case_results(emitted, test_cases),
         test_case_count=len(test_cases),
     )
 
@@ -30,26 +31,49 @@ def _payload(solution: str, test_cases: Sequence[TestCase]) -> str:
     )
 
 
-def _read_test_case_results(emitted: str) -> tuple[TestCaseResult, ...]:
+def _read_test_case_results(
+    emitted: str,
+    test_cases: Sequence[TestCase],
+) -> tuple[TestCaseResult, ...]:
     results = []
-    for line in emitted.splitlines():
-        verdict = _read_verdict(line)
-        if verdict is not None:
-            results.append(TestCaseResult(verdict=verdict))
+    for line, test_case in zip(emitted.splitlines(), test_cases):
+        result = _read_test_case_result(line, test_case)
+        if result is None:
+            break
+        results.append(result)
     return tuple(results)
 
 
-def _read_verdict(line: str) -> Verdict | None:
+def _read_test_case_result(line: str, test_case: TestCase) -> TestCaseResult | None:
+    report = _read_json_object(line)
+    if report is None:
+        return None
+    verdict = _read_verdict(report.get("verdict"))
+    if verdict is None:
+        return None
+    printed_output = report.get("printed_output")
+    error = report.get("error")
+    return TestCaseResult(
+        verdict=verdict,
+        input=test_case.input,
+        returned=report.get("returned"),
+        printed_output=printed_output if isinstance(printed_output, str) else "",
+        error=error if isinstance(error, str) else None,
+    )
+
+
+def _read_json_object(line: str) -> dict[str, Any] | None:
     try:
-        emitted = json.loads(line)
+        parsed = json.loads(line)
     except ValueError:
         return None
-    if not isinstance(emitted, dict):
-        return None
-    verdict = emitted.get("verdict")
-    if not isinstance(verdict, str):
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _read_verdict(reported: Any) -> Verdict | None:
+    if not isinstance(reported, str):
         return None
     try:
-        return Verdict(verdict)
+        return Verdict(reported)
     except ValueError:
         return None

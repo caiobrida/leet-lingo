@@ -28,4 +28,5 @@ python_classes = []
 files = ["src", "tests", "sandbox"]
 mypy_path = "sandbox"
 python_version = "3.12"
+platform = "linux"
 strict = true

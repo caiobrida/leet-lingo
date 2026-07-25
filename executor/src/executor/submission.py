@@ -21,6 +21,10 @@ class TestCase:
 @dataclass(frozen=True)
 class TestCaseResult:
     verdict: Verdict
+    input: list[Any]
+    returned: Any = None
+    printed_output: str = ""
+    error: str | None = None
 
 
 @dataclass(frozen=True)
