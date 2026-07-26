@@ -1,0 +1,179 @@
+import textwrap
+import threading
+import time
+
+from executor.judging import judge
+from executor.limits import Limits
+from executor.submission import JudgedSubmission, TestCase, Verdict
+
+MORE_MEMORY_THAN_THE_PROCESS_CAP_ALLOWS_A_FORK_BOMB_TO_USE = Limits(
+    memory_bytes=1024 * 1024 * 1024
+)
+
+FORK_BOMB = textwrap.dedent(
+    """
+    import os
+
+    def solve(number):
+        while True:
+            os.fork()
+        return number
+    """
+)
+
+ALLOCATES_WHAT_IT_IS_ASKED_FOR = textwrap.dedent(
+    """
+    def solve(megabytes):
+        blocks = [bytearray(1024 * 1024) for _ in range(megabytes)]
+        return len(blocks)
+    """
+)
+
+MEGABYTES_THE_DEFAULT_LIMIT_HAS_ROOM_FOR = 180
+LESS_MEMORY_THAN_THE_SOLUTION_ASKS_FOR = Limits(memory_bytes=128 * 1024 * 1024)
+
+WORKERS = 48
+SECONDS_OF_SATURATION = 12
+SECONDS_FOR_THE_SATURATION_TO_TAKE_HOLD = 3
+TOLERATED_SLOWDOWN = 1.5
+
+ROUNDS = 60_000_000
+SUM_OF_THE_SQUARES_BELOW_ROUNDS = (ROUNDS - 1) * ROUNDS * (2 * ROUNDS - 1) // 6
+
+SATURATES_THE_CPU = textwrap.dedent(
+    """
+    import os
+    import time
+
+    def solve(seconds, workers):
+        for _ in range(workers):
+            if os.fork() == 0:
+                deadline = time.monotonic() + seconds
+                while time.monotonic() < deadline:
+                    pass
+                os._exit(0)
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            pass
+        return workers
+    """
+)
+
+WORKS_THE_CPU = textwrap.dedent(
+    """
+    def solve(rounds):
+        total = 0
+        for number in range(rounds):
+            total += number * number
+        return total
+    """
+)
+
+ALLOCATES_WITHOUT_BOUND = textwrap.dedent(
+    """
+    def solve():
+        blocks = []
+        while True:
+            blocks.append(bytearray(8 * 1024 * 1024))
+    """
+)
+
+
+ALLOCATES_WITHOUT_BOUND_ON_EVERY_TEST_CASE_BUT_THE_FIRST = textwrap.dedent(
+    """
+    def solve(number):
+        if number == 0:
+            return 0
+        blocks = []
+        while True:
+            blocks.append(bytearray(8 * 1024 * 1024))
+    """
+)
+
+
+def test_a_solution_allocating_without_bound_is_stopped_by_the_memory_limit() -> None:
+    judged = judge(
+        solution=ALLOCATES_WITHOUT_BOUND,
+        test_cases=[TestCase(input=[], expected_output=0)],
+    )
+
+    assert judged.verdict is Verdict.memory_limit_exceeded
+
+
+def test_the_test_cases_that_finished_before_the_memory_limit_are_reported_with_the_verdict() -> (
+    None
+):
+    judged = judge(
+        solution=ALLOCATES_WITHOUT_BOUND_ON_EVERY_TEST_CASE_BUT_THE_FIRST,
+        test_cases=[TestCase(input=[number], expected_output=number) for number in range(3)],
+    )
+
+    assert judged.verdict is Verdict.memory_limit_exceeded
+    assert [result.verdict for result in judged.test_case_results] == [
+        Verdict.accepted,
+        Verdict.memory_limit_exceeded,
+    ]
+
+
+def test_a_fork_bomb_is_contained_by_the_process_cap_rather_than_by_the_memory_limit() -> None:
+    judged = judge(
+        solution=FORK_BOMB,
+        test_cases=[TestCase(input=[number], expected_output=number) for number in range(3)],
+        limits=MORE_MEMORY_THAN_THE_PROCESS_CAP_ALLOWS_A_FORK_BOMB_TO_USE,
+    )
+
+    assert judged.verdict is Verdict.runtime_error
+    assert [result.verdict for result in judged.test_case_results] == [Verdict.runtime_error] * 3
+
+
+def test_the_memory_limit_is_supplied_per_submission_rather_than_baked_into_the_sandbox() -> None:
+    test_cases = [
+        TestCase(
+            input=[MEGABYTES_THE_DEFAULT_LIMIT_HAS_ROOM_FOR],
+            expected_output=MEGABYTES_THE_DEFAULT_LIMIT_HAS_ROOM_FOR,
+        )
+    ]
+
+    given_room = judge(solution=ALLOCATES_WHAT_IT_IS_ASKED_FOR, test_cases=test_cases)
+    denied_room = judge(
+        solution=ALLOCATES_WHAT_IT_IS_ASKED_FOR,
+        test_cases=test_cases,
+        limits=LESS_MEMORY_THAN_THE_SOLUTION_ASKS_FOR,
+    )
+
+    assert given_room.verdict is Verdict.accepted
+    assert denied_room.verdict is Verdict.memory_limit_exceeded
+
+
+def test_a_solution_saturating_the_cpu_does_not_slow_a_submission_judged_alongside_it() -> None:
+    saturated: list[JudgedSubmission] = []
+    seconds_alone, judged_alone = _judge_a_submission_that_works_the_cpu()
+
+    saturating = threading.Thread(
+        target=lambda: saturated.append(_judge_a_solution_saturating_every_cpu_it_can_reach())
+    )
+    saturating.start()
+    time.sleep(SECONDS_FOR_THE_SATURATION_TO_TAKE_HOLD)
+    seconds_alongside, judged_alongside = _judge_a_submission_that_works_the_cpu()
+    saturating.join()
+
+    assert [judged.verdict for judged in saturated] == [Verdict.accepted]
+    assert judged_alone.verdict is Verdict.accepted
+    assert judged_alongside.verdict is Verdict.accepted
+    assert seconds_alongside < seconds_alone * TOLERATED_SLOWDOWN
+
+
+def _judge_a_submission_that_works_the_cpu() -> tuple[float, JudgedSubmission]:
+    started = time.monotonic()
+    judged = judge(
+        solution=WORKS_THE_CPU,
+        test_cases=[TestCase(input=[ROUNDS], expected_output=SUM_OF_THE_SQUARES_BELOW_ROUNDS)],
+    )
+    return time.monotonic() - started, judged
+
+
+def _judge_a_solution_saturating_every_cpu_it_can_reach() -> JudgedSubmission:
+    return judge(
+        solution=SATURATES_THE_CPU,
+        test_cases=[TestCase(input=[SECONDS_OF_SATURATION, WORKERS], expected_output=WORKERS)],
+    )
