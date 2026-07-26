@@ -4,6 +4,7 @@ import time
 
 import pytest
 from conftest import (
+    A_SUBMISSION,
     SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
     WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
 )
@@ -92,6 +93,7 @@ def test_a_solution_that_never_returns_is_stopped_rather_than_left_to_hang() -> 
     started = time.monotonic()
 
     judged = judge(
+        A_SUBMISSION,
         solution=NEVER_RETURNS,
         test_cases=[TestCase(input=[], expected_output=1)],
     )
@@ -102,6 +104,7 @@ def test_a_solution_that_never_returns_is_stopped_rather_than_left_to_hang() -> 
 
 def test_a_test_case_cut_off_by_the_timeout_leaves_the_remaining_test_cases_judged() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=NEVER_RETURNS_ON_THE_FIRST_TEST_CASE,
         test_cases=[TestCase(input=[number], expected_output=number) for number in range(3)],
     )
@@ -116,6 +119,7 @@ def test_a_test_case_cut_off_by_the_timeout_leaves_the_remaining_test_cases_judg
 
 def test_nothing_a_timed_out_test_case_started_is_still_running_on_the_next_one() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=FILLS_THE_SANDBOX_WITH_PROCESSES_THEN_NEVER_RETURNS,
         test_cases=[
             TestCase(
@@ -136,6 +140,7 @@ def test_a_submission_exceeding_its_budget_stops_and_keeps_the_results_it_finish
     test_cases = [TestCase(input=[number], expected_output=number) for number in range(8)]
 
     judged = judge(
+        A_SUBMISSION,
         solution=SLEEPS_BEFORE_IT_RETURNS,
         test_cases=test_cases,
         limits=A_BUDGET_SHORTER_THAN_THE_TEST_CASES_NEED,
@@ -152,6 +157,7 @@ def test_a_sandbox_whose_harness_can_no_longer_enforce_anything_is_killed_from_o
     started = time.monotonic()
 
     judged = judge(
+        A_SUBMISSION,
         solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
         test_cases=WEDGED_TEST_CASES,
         limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
@@ -163,6 +169,7 @@ def test_a_sandbox_whose_harness_can_no_longer_enforce_anything_is_killed_from_o
 
 def test_a_submission_killed_from_outside_keeps_the_results_that_finished_before_it() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
         test_cases=WEDGED_TEST_CASES,
         limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
@@ -178,6 +185,7 @@ def test_a_sandbox_killed_from_outside_is_recorded_as_an_operator_anomaly(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         judge(
+            A_SUBMISSION,
             solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
             test_cases=WEDGED_TEST_CASES,
             limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
@@ -191,6 +199,7 @@ def test_the_outer_timeout_firing_never_appears_in_what_the_learner_is_shown(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         judged = judge(
+            A_SUBMISSION,
             solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
             test_cases=WEDGED_TEST_CASES,
             limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,

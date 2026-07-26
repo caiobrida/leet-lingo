@@ -9,6 +9,8 @@ from executor.sandbox import A_NAME_ONLY_OUR_CONTAINERS_CARRY, SANDBOX_IMAGE
 
 SANDBOX_BUILD_CONTEXT = Path(__file__).resolve().parent.parent / "sandbox"
 
+A_SUBMISSION = "submission-under-test"
+
 WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH = textwrap.dedent(
     """
     import os

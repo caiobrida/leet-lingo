@@ -1,5 +1,7 @@
 import textwrap
 
+from conftest import A_SUBMISSION
+
 from executor.judging import judge
 from executor.submission import TestCase, Verdict
 
@@ -150,6 +152,7 @@ SEARCHES_THE_HARNESS_MEMORY_FOR_THE_EXPECTED_OUTPUT = textwrap.dedent(
 
 def test_a_solution_opening_a_network_connection_fails_inside_the_sandbox() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=OPENS_A_NETWORK_CONNECTION,
         test_cases=[
             TestCase(input=A_HOST_OUTSIDE_THE_SANDBOX, expected_output="reached the network")
@@ -164,6 +167,7 @@ def test_a_solution_opening_a_network_connection_fails_inside_the_sandbox() -> N
 
 def test_a_solution_writing_to_the_filesystem_fails_wherever_it_tries() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=WRITES_TO_A_PATH,
         test_cases=[
             TestCase(input=[path], expected_output="wrote to the filesystem")
@@ -178,6 +182,7 @@ def test_a_solution_writing_to_the_filesystem_fails_wherever_it_tries() -> None:
 
 def test_a_solution_cannot_overwrite_the_harness_that_judges_it() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=WRITES_TO_A_PATH,
         test_cases=[
             TestCase(
@@ -192,6 +197,7 @@ def test_a_solution_cannot_overwrite_the_harness_that_judges_it() -> None:
 
 def test_a_solution_cannot_become_a_privileged_user() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=BECOMES_A_PRIVILEGED_USER,
         test_cases=[TestCase(input=[], expected_output="became a privileged user")],
     )
@@ -204,6 +210,7 @@ def test_a_solution_cannot_become_a_privileged_user() -> None:
 
 def test_a_solution_cannot_read_a_file_only_a_privileged_user_could_read() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=READS_A_PATH,
         test_cases=[TestCase(input=[A_FILE_ONLY_A_PRIVILEGED_USER_CAN_READ], expected_output="")],
     )
@@ -216,6 +223,7 @@ def test_a_solution_cannot_read_a_file_only_a_privileged_user_could_read() -> No
 
 def test_a_solution_finds_no_binary_in_the_sandbox_that_would_grant_it_privileges() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=LOOKS_FOR_A_BINARY_THAT_WOULD_GRANT_IT_PRIVILEGES,
         test_cases=[
             TestCase(
@@ -230,6 +238,7 @@ def test_a_solution_finds_no_binary_in_the_sandbox_that_would_grant_it_privilege
 
 def test_a_solution_runs_under_a_different_user_from_the_harness_that_judges_it() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=COMPARES_ITS_USER_TO_THE_USER_THE_HARNESS_RUNS_UNDER,
         test_cases=[TestCase(input=[], expected_output=False)],
     )
@@ -239,6 +248,7 @@ def test_a_solution_runs_under_a_different_user_from_the_harness_that_judges_it(
 
 def test_a_solution_cannot_signal_the_harness_that_judges_it() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=KILLS_THE_HARNESS_THAT_JUDGES_IT,
         test_cases=[TestCase(input=[number], expected_output=number) for number in range(3)],
     )
@@ -248,6 +258,7 @@ def test_a_solution_cannot_signal_the_harness_that_judges_it() -> None:
 
 def test_a_solution_cannot_read_the_expected_output_out_of_the_harness_memory() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=SEARCHES_THE_HARNESS_MEMORY_FOR_THE_EXPECTED_OUTPUT,
         test_cases=[
             TestCase(
