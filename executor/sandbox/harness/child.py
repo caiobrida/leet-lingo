@@ -5,6 +5,8 @@ import traceback
 from multiprocessing.connection import Connection
 from typing import Any
 
+from harness.privileges import confine_the_solution
+
 ENTRY_POINT = "solve"
 
 
@@ -13,6 +15,7 @@ class MissingEntryPoint(Exception):
 
 
 def run_solution(solution: str, test_case_input: list[Any], reports: Connection) -> None:
+    confine_the_solution()
     capture = _capture_printed_output()
     try:
         returned = _call_entry_point(solution, test_case_input)
