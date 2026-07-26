@@ -41,6 +41,12 @@ def test_a_submission_reporting_on_nothing_at_all_is_not_accepted() -> None:
     assert judged.verdict is Verdict.internal_error
 
 
+def test_a_submission_judged_against_no_test_cases_at_all_is_not_accepted() -> None:
+    judged = JudgedSubmission(test_case_results=(), test_case_count=0)
+
+    assert judged.verdict is Verdict.internal_error
+
+
 def test_results_that_went_missing_with_no_limit_to_explain_them_are_a_platform_failure() -> None:
     judged = JudgedSubmission(
         test_case_results=(

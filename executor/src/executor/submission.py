@@ -37,6 +37,8 @@ class JudgedSubmission:
 
     @property
     def verdict(self) -> Verdict:
+        if not self.test_case_results:
+            return Verdict.internal_error
         if not self._reported_on_every_test_case and not self._stopped_by_a_limit:
             return Verdict.internal_error
         for result in self.test_case_results:
@@ -50,6 +52,4 @@ class JudgedSubmission:
 
     @property
     def _stopped_by_a_limit(self) -> bool:
-        if not self.test_case_results:
-            return False
         return self.test_case_results[-1].verdict in STOPS_A_SUBMISSION

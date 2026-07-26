@@ -2,23 +2,14 @@ import textwrap
 import threading
 import time
 
+from conftest import ALLOCATES_WITHOUT_BOUND, FILLS_THE_SANDBOX_WITH_PROCESSES
+
 from executor.judging import judge
 from executor.limits import Limits
 from executor.submission import JudgedSubmission, TestCase, Verdict
 
 MORE_MEMORY_THAN_THE_PROCESS_CAP_ALLOWS_A_FORK_BOMB_TO_USE = Limits(
     memory_bytes=1024 * 1024 * 1024
-)
-
-FORK_BOMB = textwrap.dedent(
-    """
-    import os
-
-    def solve(number):
-        while True:
-            os.fork()
-        return number
-    """
 )
 
 ALLOCATES_WHAT_IT_IS_ASKED_FOR = textwrap.dedent(
@@ -75,16 +66,6 @@ WORKS_THE_CPU = textwrap.dedent(
     """
 )
 
-ALLOCATES_WITHOUT_BOUND = textwrap.dedent(
-    """
-    def solve():
-        blocks = []
-        while True:
-            blocks.append(bytearray(8 * 1024 * 1024))
-    """
-)
-
-
 ALLOCATES_WITHOUT_BOUND_ON_EVERY_TEST_CASE_BUT_THE_FIRST = textwrap.dedent(
     """
     def solve(number):
@@ -96,11 +77,24 @@ ALLOCATES_WITHOUT_BOUND_ON_EVERY_TEST_CASE_BUT_THE_FIRST = textwrap.dedent(
     """
 )
 
+COMPARES_HOW_SOON_IT_WOULD_BE_KILLED_TO_THE_HARNESS = textwrap.dedent(
+    """
+    HARNESS = 1
+
+    def how_soon_the_memory_limit_kills(process):
+        with open(f"/proc/{process}/oom_score_adj") as how_soon:
+            return int(how_soon.read())
+
+    def solve():
+        return how_soon_the_memory_limit_kills("self") > how_soon_the_memory_limit_kills(HARNESS)
+    """
+)
+
 
 def test_a_solution_allocating_without_bound_is_stopped_by_the_memory_limit() -> None:
     judged = judge(
         solution=ALLOCATES_WITHOUT_BOUND,
-        test_cases=[TestCase(input=[], expected_output=0)],
+        test_cases=[TestCase(input=[0], expected_output=0)],
     )
 
     assert judged.verdict is Verdict.memory_limit_exceeded
@@ -121,9 +115,18 @@ def test_the_test_cases_that_finished_before_the_memory_limit_are_reported_with_
     ]
 
 
+def test_the_memory_limit_kills_the_solution_before_the_harness_that_judges_it() -> None:
+    judged = judge(
+        solution=COMPARES_HOW_SOON_IT_WOULD_BE_KILLED_TO_THE_HARNESS,
+        test_cases=[TestCase(input=[], expected_output=True)],
+    )
+
+    assert judged.verdict is Verdict.accepted
+
+
 def test_a_fork_bomb_is_contained_by_the_process_cap_rather_than_by_the_memory_limit() -> None:
     judged = judge(
-        solution=FORK_BOMB,
+        solution=FILLS_THE_SANDBOX_WITH_PROCESSES,
         test_cases=[TestCase(input=[number], expected_output=number) for number in range(3)],
         limits=MORE_MEMORY_THAN_THE_PROCESS_CAP_ALLOWS_A_FORK_BOMB_TO_USE,
     )

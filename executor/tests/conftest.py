@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from executor.limits import Limits
-from executor.sandbox import SANDBOX_IMAGE
+from executor.sandbox import A_NAME_ONLY_OUR_CONTAINERS_CARRY, SANDBOX_IMAGE
 
 SANDBOX_BUILD_CONTEXT = Path(__file__).resolve().parent.parent / "sandbox"
 
@@ -33,6 +33,26 @@ WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH = textwrap.dedent(
     """
 )
 
+FILLS_THE_SANDBOX_WITH_PROCESSES = textwrap.dedent(
+    """
+    import os
+
+    def solve(number):
+        while True:
+            os.fork()
+        return number
+    """
+)
+
+ALLOCATES_WITHOUT_BOUND = textwrap.dedent(
+    """
+    def solve(number):
+        blocks = []
+        while True:
+            blocks.append(bytearray(8 * 1024 * 1024))
+    """
+)
+
 SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP = Limits(sandbox_seconds=5.0)
 
 
@@ -43,3 +63,20 @@ def built_sandbox_image() -> None:
         check=True,
         capture_output=True,
     )
+
+
+def containers_still_on_the_host() -> list[str]:
+    listed = subprocess.run(
+        [
+            "docker",
+            "ps",
+            "--all",
+            "--quiet",
+            "--filter",
+            f"name={A_NAME_ONLY_OUR_CONTAINERS_CARRY}",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return listed.stdout.split()
