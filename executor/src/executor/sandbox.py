@@ -28,12 +28,12 @@ NO_PRIVILEGE_BEYOND_GIVING_THE_SOLUTION_A_USER_AND_KILLING_IT = [
 
 
 @dataclass(frozen=True)
-class SandboxRun:
-    emitted: str
+class EmittedByTheSandbox:
+    stream: str
     killed_from_outside: bool
 
 
-def run_sandbox(payload: str, limits: Limits) -> SandboxRun:
+def run_sandbox(payload: str, limits: Limits) -> EmittedByTheSandbox:
     container = _a_name_for_one_container()
     sandbox = subprocess.Popen(
         _docker_run_command(container, limits),
@@ -50,14 +50,17 @@ def run_sandbox(payload: str, limits: Limits) -> SandboxRun:
     )
     killing.start()
     try:
-        emitted = send_and_collect(sandbox, payload)
+        collected = send_and_collect(sandbox, payload)
         sandbox.wait()
     finally:
         killing.cancel()
         killing.join()
     if killed_from_outside.is_set():
         record_a_sandbox_killed_from_outside(container)
-    return SandboxRun(emitted=emitted, killed_from_outside=killed_from_outside.is_set())
+    return EmittedByTheSandbox(
+        stream=collected,
+        killed_from_outside=killed_from_outside.is_set(),
+    )
 
 
 def _kill_the_container(container: str, killed_from_outside: threading.Event) -> None:

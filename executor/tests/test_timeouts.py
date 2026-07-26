@@ -3,6 +3,10 @@ import textwrap
 import time
 
 import pytest
+from conftest import (
+    SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
+    WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
+)
 
 from executor.anomalies import OPERATOR_ANOMALIES
 from executor.judging import judge
@@ -45,6 +49,7 @@ FILLS_THE_SANDBOX_WITH_PROCESSES_THEN_NEVER_RETURNS = textwrap.dedent(
         while True:
             try:
                 if os.fork() == 0:
+                    os.setsid()
                     time.sleep(3600)
                     os._exit(0)
             except OSError:
@@ -64,17 +69,23 @@ MOST_PROCESSES_A_SINGLE_TEST_CASE_NEEDS = 8
 
 A_BUDGET_SHORTER_THAN_THE_TEST_CASES_NEED = Limits(test_case_seconds=2.0, submission_seconds=3.0)
 
-LONGER_INSIDE_THE_SANDBOX_THAN_OUTSIDE_IT = Limits(
-    test_case_seconds=120.0,
-    submission_seconds=120.0,
-    sandbox_seconds=3.0,
-)
-
+SOONER_THAN_A_KILL_FROM_OUTSIDE_COULD_HAVE_DONE_IT = Limits().sandbox_seconds
 SECONDS_A_KILL_FROM_OUTSIDE_LEAVES_ROOM_FOR = 20.0
 
-SOONER_THAN_A_KILL_FROM_OUTSIDE_COULD_HAVE_DONE_IT = Limits().sandbox_seconds
+TEST_CASES_THE_SOLUTION_ANSWERS_BEFORE_IT_WEDGES = 2
+MORE_TEST_CASES_THAN_A_WEDGED_SUBMISSION_CAN_REACH = 5
 
-MORE_TEST_CASES_THAN_A_KILLED_SUBMISSION_CAN_REACH = 5
+WEDGED_TEST_CASES = [
+    TestCase(
+        input=[number, TEST_CASES_THE_SOLUTION_ANSWERS_BEFORE_IT_WEDGES],
+        expected_output=number,
+    )
+    for number in range(MORE_TEST_CASES_THAN_A_WEDGED_SUBMISSION_CAN_REACH)
+]
+
+WHAT_A_WEDGED_SUBMISSION_REPORTS = [
+    Verdict.accepted
+] * TEST_CASES_THE_SOLUTION_ANSWERS_BEFORE_IT_WEDGES + [Verdict.time_limit_exceeded]
 
 
 def test_a_solution_that_never_returns_is_stopped_rather_than_left_to_hang() -> None:
@@ -132,39 +143,34 @@ def test_a_submission_exceeding_its_budget_stops_and_keeps_the_results_it_finish
 
     results = judged.test_case_results
     assert judged.verdict is Verdict.time_limit_exceeded
-    assert len(results) < len(test_cases)
+    assert 1 < len(results) < len(test_cases)
     assert results[-1].verdict is Verdict.time_limit_exceeded
     assert [result.verdict for result in results[:-1]] == [Verdict.accepted] * (len(results) - 1)
-    assert len(results) > 1
 
 
-def test_a_sandbox_the_harness_cannot_stop_is_killed_from_outside_the_container() -> None:
+def test_a_sandbox_whose_harness_can_no_longer_enforce_anything_is_killed_from_outside() -> None:
     started = time.monotonic()
 
     judged = judge(
-        solution=NEVER_RETURNS,
-        test_cases=[TestCase(input=[], expected_output=1)],
-        limits=LONGER_INSIDE_THE_SANDBOX_THAN_OUTSIDE_IT,
+        solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
+        test_cases=WEDGED_TEST_CASES,
+        limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
     )
 
     assert time.monotonic() - started < SECONDS_A_KILL_FROM_OUTSIDE_LEAVES_ROOM_FOR
     assert judged.verdict is Verdict.time_limit_exceeded
 
 
-def test_a_submission_killed_from_outside_reports_fewer_results_than_it_has_test_cases() -> None:
-    test_cases = [
-        TestCase(input=[number], expected_output=number)
-        for number in range(MORE_TEST_CASES_THAN_A_KILLED_SUBMISSION_CAN_REACH)
-    ]
-
+def test_a_submission_killed_from_outside_keeps_the_results_that_finished_before_it() -> None:
     judged = judge(
-        solution=NEVER_RETURNS_ON_THE_FIRST_TEST_CASE,
-        test_cases=test_cases,
-        limits=LONGER_INSIDE_THE_SANDBOX_THAN_OUTSIDE_IT,
+        solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
+        test_cases=WEDGED_TEST_CASES,
+        limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
     )
 
-    assert judged.verdict is Verdict.time_limit_exceeded
-    assert len(judged.test_case_results) < len(test_cases)
+    results = judged.test_case_results
+    assert len(results) < len(WEDGED_TEST_CASES)
+    assert [result.verdict for result in results] == WHAT_A_WEDGED_SUBMISSION_REPORTS
 
 
 def test_a_sandbox_killed_from_outside_is_recorded_as_an_operator_anomaly(
@@ -172,9 +178,9 @@ def test_a_sandbox_killed_from_outside_is_recorded_as_an_operator_anomaly(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         judge(
-            solution=NEVER_RETURNS,
-            test_cases=[TestCase(input=[], expected_output=1)],
-            limits=LONGER_INSIDE_THE_SANDBOX_THAN_OUTSIDE_IT,
+            solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
+            test_cases=WEDGED_TEST_CASES,
+            limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
         )
 
     assert [record.name for record in caplog.records] == [OPERATOR_ANOMALIES.name]
@@ -185,14 +191,14 @@ def test_the_outer_timeout_firing_never_appears_in_what_the_learner_is_shown(
 ) -> None:
     with caplog.at_level(logging.WARNING):
         judged = judge(
-            solution=NEVER_RETURNS,
-            test_cases=[TestCase(input=[], expected_output=1)],
-            limits=LONGER_INSIDE_THE_SANDBOX_THAN_OUTSIDE_IT,
+            solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
+            test_cases=WEDGED_TEST_CASES,
+            limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
         )
 
-    shown = judged.test_case_results[0]
+    killed_on = judged.test_case_results[-1]
     assert caplog.records != []
     assert judged.verdict is Verdict.time_limit_exceeded
-    assert shown.verdict is Verdict.time_limit_exceeded
-    assert shown.error is None
-    assert shown.printed_output == ""
+    assert killed_on.verdict is Verdict.time_limit_exceeded
+    assert all(result.error is None for result in judged.test_case_results)
+    assert all(result.printed_output == "" for result in judged.test_case_results)

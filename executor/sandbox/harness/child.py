@@ -6,7 +6,6 @@ from multiprocessing.connection import Connection
 from typing import Any
 
 from harness.privileges import confine_the_solution
-from harness.process_group import start_a_new_process_group
 
 ENTRY_POINT = "solve"
 
@@ -16,7 +15,6 @@ class MissingEntryPoint(Exception):
 
 
 def run_solution(solution: str, test_case_input: list[Any], reports: Connection) -> None:
-    start_a_new_process_group()
     confine_the_solution()
     capture = _capture_printed_output()
     try:

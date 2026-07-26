@@ -4,7 +4,13 @@ from collections.abc import Sequence
 from executor.limits import Limits
 from executor.results import read_test_case_results
 from executor.sandbox import run_sandbox
-from executor.submission import JudgedSubmission, TestCase, TestCaseResult, Verdict
+from executor.submission import (
+    STOPS_A_SUBMISSION,
+    JudgedSubmission,
+    TestCase,
+    TestCaseResult,
+    Verdict,
+)
 
 
 def judge(
@@ -12,9 +18,9 @@ def judge(
     test_cases: Sequence[TestCase],
     limits: Limits = Limits(),
 ) -> JudgedSubmission:
-    run = run_sandbox(_payload(solution, test_cases, limits), limits)
-    results = read_test_case_results(run.emitted, test_cases)
-    if run.killed_from_outside:
+    emitted = run_sandbox(_payload(solution, test_cases, limits), limits)
+    results = read_test_case_results(emitted.stream, test_cases)
+    if emitted.killed_from_outside:
         results = _with_the_test_case_it_was_killed_on(results, test_cases)
     return JudgedSubmission(test_case_results=results, test_case_count=len(test_cases))
 
@@ -39,7 +45,7 @@ def _with_the_test_case_it_was_killed_on(
     results: tuple[TestCaseResult, ...],
     test_cases: Sequence[TestCase],
 ) -> tuple[TestCaseResult, ...]:
-    if len(results) >= len(test_cases):
+    if len(results) >= len(test_cases) or _had_already_stopped(results):
         return results
     return results + (
         TestCaseResult(
@@ -47,3 +53,7 @@ def _with_the_test_case_it_was_killed_on(
             input=test_cases[len(results)].input,
         ),
     )
+
+
+def _had_already_stopped(results: tuple[TestCaseResult, ...]) -> bool:
+    return bool(results) and results[-1].verdict in STOPS_A_SUBMISSION

@@ -9,7 +9,7 @@ from typing import Any
 from harness.child import run_solution
 from harness.memory_limit import has_killed_a_process
 from harness.payload import Limits, TestCase
-from harness.process_group import kill_the_process_group
+from harness.solution_processes import kill_everything_the_solution_started
 
 ACCEPTED = "accepted"
 WRONG_ANSWER = "wrong_answer"
@@ -24,7 +24,7 @@ NO_ROOM_LEFT_FOR_A_PROCESS = (
 
 
 @dataclass(frozen=True)
-class SolutionRun:
+class SolutionReport:
     report: dict[str, Any] | None
     ran_out_of_time: bool = False
 
@@ -37,7 +37,7 @@ def judge_test_cases(
     budget_ends_at = time.monotonic() + limits.submission_seconds
     for test_case in test_cases:
         if time.monotonic() >= budget_ends_at:
-            yield _ran_out_of_time()
+            yield _out_of_time()
             return
         result = _judge_test_case(solution, test_case, limits.test_case_seconds)
         yield result
@@ -46,11 +46,11 @@ def judge_test_cases(
 
 
 def _judge_test_case(solution: str, test_case: TestCase, seconds: float) -> dict[str, Any]:
-    run = _run_in_child_process(solution, test_case.input, seconds)
-    if run.report is not None:
-        return _test_case_result(run.report, test_case.expected_output)
-    if run.ran_out_of_time:
-        return _ran_out_of_time()
+    reported = _run_in_child_process(solution, test_case.input, seconds)
+    if reported.report is not None:
+        return _test_case_result(reported.report, test_case.expected_output)
+    if reported.ran_out_of_time:
+        return _out_of_time()
     if has_killed_a_process():
         return {"verdict": MEMORY_LIMIT_EXCEEDED, "printed_output": ""}
     return {
@@ -60,7 +60,7 @@ def _judge_test_case(solution: str, test_case: TestCase, seconds: float) -> dict
     }
 
 
-def _ran_out_of_time() -> dict[str, Any]:
+def _out_of_time() -> dict[str, Any]:
     return {"verdict": TIME_LIMIT_EXCEEDED, "printed_output": ""}
 
 
@@ -85,7 +85,7 @@ def _run_in_child_process(
     solution: str,
     test_case_input: list[Any],
     seconds: float,
-) -> SolutionRun:
+) -> SolutionReport:
     reports, sent_by_the_child = multiprocessing.Pipe(duplex=False)
     child = multiprocessing.Process(
         target=run_solution,
@@ -95,11 +95,11 @@ def _run_in_child_process(
     sent_by_the_child.close()
     if not started:
         reports.close()
-        return SolutionRun(report={"error": NO_ROOM_LEFT_FOR_A_PROCESS})
+        return SolutionReport(report={"error": NO_ROOM_LEFT_FOR_A_PROCESS})
     try:
         if not reports.poll(seconds):
-            return SolutionRun(report=None, ran_out_of_time=True)
-        return SolutionRun(report=_read_report(reports))
+            return SolutionReport(report=None, ran_out_of_time=True)
+        return SolutionReport(report=_read_report(reports))
     finally:
         reports.close()
         _stop(child)
@@ -114,11 +114,9 @@ def _start(child: multiprocessing.Process) -> bool:
 
 
 def _stop(child: multiprocessing.Process) -> None:
-    process_group = child.pid
     child.kill()
     child.join()
-    if process_group is not None:
-        kill_the_process_group(process_group)
+    kill_everything_the_solution_started()
 
 
 def _read_report(reports: Connection) -> dict[str, Any] | None:
