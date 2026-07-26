@@ -37,6 +37,12 @@ SECONDS_OF_SATURATION = 12
 SECONDS_FOR_THE_SATURATION_TO_TAKE_HOLD = 3
 TOLERATED_SLOWDOWN = 1.5
 
+LONGER_THAN_THE_SATURATION_THIS_TEST_ARRANGES = Limits(
+    test_case_seconds=30.0,
+    submission_seconds=30.0,
+    sandbox_seconds=60.0,
+)
+
 ROUNDS = 60_000_000
 SUM_OF_THE_SQUARES_BELOW_ROUNDS = (ROUNDS - 1) * ROUNDS * (2 * ROUNDS - 1) // 6
 
@@ -168,6 +174,7 @@ def _judge_a_submission_that_works_the_cpu() -> tuple[float, JudgedSubmission]:
     judged = judge(
         solution=WORKS_THE_CPU,
         test_cases=[TestCase(input=[ROUNDS], expected_output=SUM_OF_THE_SQUARES_BELOW_ROUNDS)],
+        limits=LONGER_THAN_THE_SATURATION_THIS_TEST_ARRANGES,
     )
     return time.monotonic() - started, judged
 
@@ -176,4 +183,5 @@ def _judge_a_solution_saturating_every_cpu_it_can_reach() -> JudgedSubmission:
     return judge(
         solution=SATURATES_THE_CPU,
         test_cases=[TestCase(input=[SECONDS_OF_SATURATION, WORKERS], expected_output=WORKERS)],
+        limits=LONGER_THAN_THE_SATURATION_THIS_TEST_ARRANGES,
     )

@@ -1,17 +1,21 @@
 import json
 import multiprocessing
+import time
 from collections.abc import Iterator
+from dataclasses import dataclass
 from multiprocessing.connection import Connection
 from typing import Any
 
 from harness.child import run_solution
 from harness.memory_limit import has_killed_a_process
-from harness.payload import TestCase
+from harness.payload import Limits, TestCase
+from harness.process_group import kill_the_process_group
 
 ACCEPTED = "accepted"
 WRONG_ANSWER = "wrong_answer"
 RUNTIME_ERROR = "runtime_error"
 MEMORY_LIMIT_EXCEEDED = "memory_limit_exceeded"
+TIME_LIMIT_EXCEEDED = "time_limit_exceeded"
 
 STOPPED_WITHOUT_REPORTING = "the solution stopped before it returned a value"
 NO_ROOM_LEFT_FOR_A_PROCESS = (
@@ -19,18 +23,34 @@ NO_ROOM_LEFT_FOR_A_PROCESS = (
 )
 
 
-def judge_test_cases(solution: str, test_cases: list[TestCase]) -> Iterator[dict[str, Any]]:
+@dataclass(frozen=True)
+class SolutionRun:
+    report: dict[str, Any] | None
+    ran_out_of_time: bool = False
+
+
+def judge_test_cases(
+    solution: str,
+    test_cases: list[TestCase],
+    limits: Limits,
+) -> Iterator[dict[str, Any]]:
+    budget_ends_at = time.monotonic() + limits.submission_seconds
     for test_case in test_cases:
-        result = _judge_test_case(solution, test_case)
+        if time.monotonic() >= budget_ends_at:
+            yield _ran_out_of_time()
+            return
+        result = _judge_test_case(solution, test_case, limits.test_case_seconds)
         yield result
         if result["verdict"] == MEMORY_LIMIT_EXCEEDED:
             return
 
 
-def _judge_test_case(solution: str, test_case: TestCase) -> dict[str, Any]:
-    report = _run_in_child_process(solution, test_case.input)
-    if report is not None:
-        return _test_case_result(report, test_case.expected_output)
+def _judge_test_case(solution: str, test_case: TestCase, seconds: float) -> dict[str, Any]:
+    run = _run_in_child_process(solution, test_case.input, seconds)
+    if run.report is not None:
+        return _test_case_result(run.report, test_case.expected_output)
+    if run.ran_out_of_time:
+        return _ran_out_of_time()
     if has_killed_a_process():
         return {"verdict": MEMORY_LIMIT_EXCEEDED, "printed_output": ""}
     return {
@@ -38,6 +58,10 @@ def _judge_test_case(solution: str, test_case: TestCase) -> dict[str, Any]:
         "error": STOPPED_WITHOUT_REPORTING,
         "printed_output": "",
     }
+
+
+def _ran_out_of_time() -> dict[str, Any]:
+    return {"verdict": TIME_LIMIT_EXCEEDED, "printed_output": ""}
 
 
 def _test_case_result(report: dict[str, Any], expected_output: Any) -> dict[str, Any]:
@@ -57,7 +81,11 @@ def _test_case_result(report: dict[str, Any], expected_output: Any) -> dict[str,
     }
 
 
-def _run_in_child_process(solution: str, test_case_input: list[Any]) -> dict[str, Any] | None:
+def _run_in_child_process(
+    solution: str,
+    test_case_input: list[Any],
+    seconds: float,
+) -> SolutionRun:
     reports, sent_by_the_child = multiprocessing.Pipe(duplex=False)
     child = multiprocessing.Process(
         target=run_solution,
@@ -67,12 +95,14 @@ def _run_in_child_process(solution: str, test_case_input: list[Any]) -> dict[str
     sent_by_the_child.close()
     if not started:
         reports.close()
-        return {"error": NO_ROOM_LEFT_FOR_A_PROCESS}
+        return SolutionRun(report={"error": NO_ROOM_LEFT_FOR_A_PROCESS})
     try:
-        return _read_report(reports)
+        if not reports.poll(seconds):
+            return SolutionRun(report=None, ran_out_of_time=True)
+        return SolutionRun(report=_read_report(reports))
     finally:
         reports.close()
-        child.join()
+        _stop(child)
 
 
 def _start(child: multiprocessing.Process) -> bool:
@@ -81,6 +111,14 @@ def _start(child: multiprocessing.Process) -> bool:
     except OSError:
         return False
     return True
+
+
+def _stop(child: multiprocessing.Process) -> None:
+    process_group = child.pid
+    child.kill()
+    child.join()
+    if process_group is not None:
+        kill_the_process_group(process_group)
 
 
 def _read_report(reports: Connection) -> dict[str, Any] | None:

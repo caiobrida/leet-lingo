@@ -14,9 +14,16 @@ class TestCase:
 
 
 @dataclass(frozen=True)
+class Limits:
+    test_case_seconds: float
+    submission_seconds: float
+
+
+@dataclass(frozen=True)
 class Payload:
     solution: str
     test_cases: list[TestCase]
+    limits: Limits
 
 
 def parse_payload(document: str) -> Payload:
@@ -29,6 +36,7 @@ def parse_payload(document: str) -> Payload:
     return Payload(
         solution=_read_solution(parsed),
         test_cases=[_read_test_case(entry) for entry in _read_test_case_entries(parsed)],
+        limits=_read_limits(parsed),
     )
 
 
@@ -55,3 +63,20 @@ def _read_test_case(entry: Any) -> TestCase:
     if "expected_output" not in entry:
         raise InvalidPayload("a test case carries no expected output")
     return TestCase(input=test_case_input, expected_output=entry["expected_output"])
+
+
+def _read_limits(parsed: dict[str, Any]) -> Limits:
+    limits = parsed.get("limits")
+    if not isinstance(limits, dict):
+        raise InvalidPayload("the payload carries no limits")
+    return Limits(
+        test_case_seconds=_read_seconds(limits, "test_case_seconds"),
+        submission_seconds=_read_seconds(limits, "submission_seconds"),
+    )
+
+
+def _read_seconds(limits: dict[str, Any], name: str) -> float:
+    seconds = limits.get(name)
+    if not isinstance(seconds, int | float) or seconds <= 0:
+        raise InvalidPayload(f"the limit {name} is not a positive number of seconds")
+    return float(seconds)
