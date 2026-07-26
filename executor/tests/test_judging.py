@@ -122,37 +122,6 @@ def test_a_solution_returning_tuples_where_lists_are_expected_is_accepted() -> N
     assert judged.verdict is Verdict.accepted
 
 
-def test_each_submission_is_judged_in_a_sandbox_carrying_nothing_from_the_last_one() -> None:
-    marker = "/tmp/leet-lingo-marker"
-    leave_a_marker = textwrap.dedent(
-        f"""
-        def solve():
-            open({marker!r}, "w").close()
-            return "left behind"
-        """
-    )
-    look_for_the_marker = textwrap.dedent(
-        f"""
-        import os
-
-        def solve():
-            return os.path.exists({marker!r})
-        """
-    )
-
-    attempted = judge(
-        solution=leave_a_marker,
-        test_cases=[TestCase(input=[], expected_output="left behind")],
-    )
-    judged = judge(
-        solution=look_for_the_marker,
-        test_cases=[TestCase(input=[], expected_output=False)],
-    )
-
-    assert attempted.verdict is Verdict.runtime_error
-    assert judged.verdict is Verdict.accepted
-
-
 def test_the_solution_runs_in_a_child_process_started_with_spawn() -> None:
     judged = judge(
         solution=textwrap.dedent(

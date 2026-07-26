@@ -5,8 +5,11 @@ from executor.streams import send_and_collect
 
 SANDBOX_IMAGE = "leet-lingo-sandbox:latest"
 
-CUT_OFF_FROM_EVERYTHING_OUTSIDE_THE_SANDBOX = [
+NOTHING_TO_REACH_OUTSIDE_THE_SANDBOX = [
     "--network=none",
+]
+
+NOTHING_WRITABLE_INSIDE_THE_SANDBOX = [
     "--read-only",
     "--tmpfs=/dev/shm:mode=0555",
 ]
@@ -38,17 +41,12 @@ def _docker_run_command(limits: Limits) -> list[str]:
         "run",
         "--rm",
         "--interactive",
-        *CUT_OFF_FROM_EVERYTHING_OUTSIDE_THE_SANDBOX,
+        *NOTHING_TO_REACH_OUTSIDE_THE_SANDBOX,
+        *NOTHING_WRITABLE_INSIDE_THE_SANDBOX,
         *NO_PRIVILEGE_BEYOND_ASSIGNING_THE_SOLUTION_ITS_OWN_USER,
-        *_capped_at(limits),
-        SANDBOX_IMAGE,
-    ]
-
-
-def _capped_at(limits: Limits) -> list[str]:
-    return [
         f"--memory={limits.memory_bytes}b",
         f"--memory-swap={limits.memory_bytes}b",
         f"--cpus={limits.cpus}",
         f"--pids-limit={limits.processes}",
+        SANDBOX_IMAGE,
     ]

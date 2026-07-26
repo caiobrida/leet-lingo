@@ -151,10 +151,15 @@ SEARCHES_THE_HARNESS_MEMORY_FOR_THE_EXPECTED_OUTPUT = textwrap.dedent(
 def test_a_solution_opening_a_network_connection_fails_inside_the_sandbox() -> None:
     judged = judge(
         solution=OPENS_A_NETWORK_CONNECTION,
-        test_cases=[TestCase(input=A_HOST_OUTSIDE_THE_SANDBOX, expected_output="reached the network")],
+        test_cases=[
+            TestCase(input=A_HOST_OUTSIDE_THE_SANDBOX, expected_output="reached the network")
+        ],
     )
 
+    refused = judged.test_case_results[0]
     assert judged.verdict is Verdict.runtime_error
+    assert refused.error is not None
+    assert "Network is unreachable" in refused.error
 
 
 def test_a_solution_writing_to_the_filesystem_fails_wherever_it_tries() -> None:
@@ -191,7 +196,10 @@ def test_a_solution_cannot_become_a_privileged_user() -> None:
         test_cases=[TestCase(input=[], expected_output="became a privileged user")],
     )
 
+    refused = judged.test_case_results[0]
     assert judged.verdict is Verdict.runtime_error
+    assert refused.error is not None
+    assert "PermissionError" in refused.error
 
 
 def test_a_solution_cannot_read_a_file_only_a_privileged_user_could_read() -> None:
@@ -200,7 +208,10 @@ def test_a_solution_cannot_read_a_file_only_a_privileged_user_could_read() -> No
         test_cases=[TestCase(input=[A_FILE_ONLY_A_PRIVILEGED_USER_CAN_READ], expected_output="")],
     )
 
+    refused = judged.test_case_results[0]
     assert judged.verdict is Verdict.runtime_error
+    assert refused.error is not None
+    assert "PermissionError" in refused.error
 
 
 def test_a_solution_finds_no_binary_in_the_sandbox_that_would_grant_it_privileges() -> None:
