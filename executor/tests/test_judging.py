@@ -140,7 +140,7 @@ def test_each_submission_is_judged_in_a_sandbox_carrying_nothing_from_the_last_o
         """
     )
 
-    judge(
+    attempted = judge(
         solution=leave_a_marker,
         test_cases=[TestCase(input=[], expected_output="left behind")],
     )
@@ -149,6 +149,7 @@ def test_each_submission_is_judged_in_a_sandbox_carrying_nothing_from_the_last_o
         test_cases=[TestCase(input=[], expected_output=False)],
     )
 
+    assert attempted.verdict is Verdict.runtime_error
     assert judged.verdict is Verdict.accepted
 
 
