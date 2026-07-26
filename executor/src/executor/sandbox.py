@@ -9,6 +9,8 @@ from executor.streams import send_and_collect
 
 SANDBOX_IMAGE = "leet-lingo-sandbox:latest"
 
+A_NAME_ONLY_OUR_CONTAINERS_CARRY = "leet-lingo-"
+
 NOTHING_TO_REACH_OUTSIDE_THE_SANDBOX = [
     "--network=none",
 ]
@@ -33,19 +35,35 @@ class EmittedByTheSandbox:
     killed_from_outside: bool
 
 
+EMITTED_BY_A_SANDBOX_THAT_NEVER_STARTED = EmittedByTheSandbox(stream="", killed_from_outside=False)
+
+
 def run_sandbox(payload: str, limits: Limits) -> EmittedByTheSandbox:
     container = _a_name_for_one_container()
-    sandbox = subprocess.Popen(
-        _docker_run_command(container, limits),
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        encoding="utf-8",
-    )
+    sandbox = _start_the_sandbox(container, limits)
+    if sandbox is None:
+        return EMITTED_BY_A_SANDBOX_THAT_NEVER_STARTED
+    try:
+        emitted = _collect_until_the_sandbox_stops(sandbox, container, payload, limits)
+    except BaseException:
+        _kill_the_container(container)
+        sandbox.wait()
+        raise
+    if emitted.killed_from_outside:
+        record_a_sandbox_killed_from_outside(container)
+    return emitted
+
+
+def _collect_until_the_sandbox_stops(
+    sandbox: "subprocess.Popen[str]",
+    container: str,
+    payload: str,
+    limits: Limits,
+) -> EmittedByTheSandbox:
     killed_from_outside = threading.Event()
     killing = threading.Timer(
         limits.sandbox_seconds,
-        _kill_the_container,
+        _kill_the_container_from_outside,
         args=(container, killed_from_outside),
     )
     killing.start()
@@ -55,22 +73,42 @@ def run_sandbox(payload: str, limits: Limits) -> EmittedByTheSandbox:
     finally:
         killing.cancel()
         killing.join()
-    if killed_from_outside.is_set():
-        record_a_sandbox_killed_from_outside(container)
     return EmittedByTheSandbox(
         stream=collected,
         killed_from_outside=killed_from_outside.is_set(),
     )
 
 
-def _kill_the_container(container: str, killed_from_outside: threading.Event) -> None:
-    killed = subprocess.run(["docker", "kill", container], capture_output=True)
-    if killed.returncode == 0:
-        killed_from_outside.set()
+def _start_the_sandbox(container: str, limits: Limits) -> "subprocess.Popen[str] | None":
+    try:
+        return subprocess.Popen(
+            _docker_run_command(container, limits),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            encoding="utf-8",
+        )
+    except OSError:
+        return None
+
+
+def _kill_the_container_from_outside(
+    container: str,
+    killed_from_outside: threading.Event,
+) -> None:
+    killed_from_outside.set()
+    _kill_the_container(container)
+
+
+def _kill_the_container(container: str) -> None:
+    try:
+        subprocess.run(["docker", "kill", container], capture_output=True)
+    except OSError:
+        pass
 
 
 def _a_name_for_one_container() -> str:
-    return f"leet-lingo-{uuid.uuid4().hex}"
+    return f"{A_NAME_ONLY_OUR_CONTAINERS_CARRY}{uuid.uuid4().hex}"
 
 
 def _docker_run_command(container: str, limits: Limits) -> list[str]:

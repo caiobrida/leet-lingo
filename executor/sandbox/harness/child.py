@@ -5,6 +5,7 @@ import traceback
 from multiprocessing.connection import Connection
 from typing import Any
 
+from harness.memory_limit import be_the_first_process_the_memory_limit_kills
 from harness.privileges import confine_the_solution
 
 ENTRY_POINT = "solve"
@@ -15,6 +16,7 @@ class MissingEntryPoint(Exception):
 
 
 def run_solution(solution: str, test_case_input: list[Any], reports: Connection) -> None:
+    be_the_first_process_the_memory_limit_kills()
     confine_the_solution()
     capture = _capture_printed_output()
     try:
