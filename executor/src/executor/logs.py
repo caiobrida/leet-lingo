@@ -44,10 +44,15 @@ def the_executors_log_format() -> logging.Formatter:
     )
 
 
-def configure_the_executors_logs() -> None:
+def the_executors_log_handler() -> logging.Handler:
     lines = logging.StreamHandler()
     lines.setFormatter(the_executors_log_format())
-    logging.basicConfig(level=logging.INFO, handlers=[lines])
+    lines.addFilter(_carry_the_submission_being_judged)
+    return lines
+
+
+def configure_the_executors_logs() -> None:
+    logging.basicConfig(level=logging.INFO, handlers=[the_executors_log_handler()])
 
 
 def _carry_the_submission_being_judged(record: logging.LogRecord) -> bool:

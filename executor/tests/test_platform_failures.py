@@ -4,7 +4,9 @@ import pytest
 from conftest import (
     A_SUBMISSION,
     ALLOCATES_WITHOUT_BOUND,
+    AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN,
     FILLS_THE_SANDBOX_WITH_PROCESSES,
+    RETURNS_ITS_ARGUMENT,
 )
 
 from executor import sandbox
@@ -12,16 +14,8 @@ from executor.judging import judge
 from executor.results import read_test_case_results
 from executor.submission import JudgedSubmission, TestCase, Verdict
 
-RETURNS_ITS_ARGUMENT = textwrap.dedent(
-    """
-    def solve(number):
-        return number
-    """
-)
-
 AN_ENDPOINT_NO_DOCKER_DAEMON_ANSWERS_ON = "tcp://127.0.0.1:1"
 NOWHERE_TO_FIND_A_DOCKER_COMMAND = ""
-AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN = "leet-lingo-sandbox-that-was-never-built:latest"
 
 NOTHING_A_TEST_CASE_RESULT_CAN_BE_READ_FROM = (
     "docker: Error response from daemon: the sandbox never answered\n"

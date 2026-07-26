@@ -2,6 +2,7 @@ import logging
 import textwrap
 
 import pytest
+from conftest import AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN
 from prometheus_client import REGISTRY
 
 from executor import sandbox
@@ -11,8 +12,6 @@ from executor.submission import TestCase, Verdict
 
 SUBMISSIONS_AN_OPERATOR_COUNTS = "submissions_judged_total"
 THE_DIMENSION_A_VERDICT_IS_COUNTED_ON = "verdict"
-
-AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN = "leet-lingo-sandbox-that-was-never-built:latest"
 
 RETURNS_ONE_MORE_THAN_ITS_ARGUMENT = textwrap.dedent(
     """

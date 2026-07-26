@@ -11,6 +11,15 @@ SANDBOX_BUILD_CONTEXT = Path(__file__).resolve().parent.parent / "sandbox"
 
 A_SUBMISSION = "submission-under-test"
 
+AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN = "leet-lingo-sandbox-that-was-never-built:latest"
+
+RETURNS_ITS_ARGUMENT = textwrap.dedent(
+    """
+    def solve(number):
+        return number
+    """
+)
+
 WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH = textwrap.dedent(
     """
     import os
