@@ -12,6 +12,9 @@ class Verdict(StrEnum):
     internal_error = "internal_error"
 
 
+STOPS_A_SUBMISSION = frozenset({Verdict.time_limit_exceeded, Verdict.memory_limit_exceeded})
+
+
 @dataclass(frozen=True)
 class TestCase:
     input: list[Any]
@@ -34,9 +37,19 @@ class JudgedSubmission:
 
     @property
     def verdict(self) -> Verdict:
-        if len(self.test_case_results) != self.test_case_count:
+        if not self._reported_on_every_test_case and not self._stopped_by_a_limit:
             return Verdict.internal_error
         for result in self.test_case_results:
             if result.verdict is not Verdict.accepted:
                 return result.verdict
         return Verdict.accepted
+
+    @property
+    def _reported_on_every_test_case(self) -> bool:
+        return len(self.test_case_results) == self.test_case_count
+
+    @property
+    def _stopped_by_a_limit(self) -> bool:
+        if not self.test_case_results:
+            return False
+        return self.test_case_results[-1].verdict in STOPS_A_SUBMISSION

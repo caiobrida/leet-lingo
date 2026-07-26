@@ -26,6 +26,7 @@ def _docker_run_command(limits: Limits) -> list[str]:
         "--rm",
         "--interactive",
         f"--memory={limits.memory_bytes}b",
+        f"--memory-swap={limits.memory_bytes}b",
         f"--cpus={limits.cpus}",
         f"--pids-limit={limits.processes}",
         SANDBOX_IMAGE,
