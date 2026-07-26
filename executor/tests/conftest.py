@@ -1,11 +1,39 @@
 import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
 
+from executor.limits import Limits
 from executor.sandbox import SANDBOX_IMAGE
 
 SANDBOX_BUILD_CONTEXT = Path(__file__).resolve().parent.parent / "sandbox"
+
+WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH = textwrap.dedent(
+    """
+    import os
+    import struct
+
+    MORE_BYTES_THAN_THE_SOLUTION_WILL_EVER_SEND = 1024 * 1024
+    THE_STREAMS_EVERY_PROCESS_STARTS_WITH = 3
+
+    def solve(number, wedge_from):
+        if number < wedge_from:
+            return number
+        promise = struct.pack("!i", MORE_BYTES_THAN_THE_SOLUTION_WILL_EVER_SEND)
+        for name in os.listdir("/proc/self/fd"):
+            descriptor = int(name)
+            if descriptor >= THE_STREAMS_EVERY_PROCESS_STARTS_WITH:
+                try:
+                    os.write(descriptor, promise)
+                except OSError:
+                    pass
+        while True:
+            pass
+    """
+)
+
+SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP = Limits(sandbox_seconds=5.0)
 
 
 @pytest.fixture(scope="session", autouse=True)
