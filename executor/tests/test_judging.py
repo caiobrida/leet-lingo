@@ -1,11 +1,14 @@
 import textwrap
 
+from conftest import A_SUBMISSION
+
 from executor.judging import judge
 from executor.submission import TestCase, TestCaseResult, Verdict
 
 
 def test_a_solution_satisfying_its_single_test_case_is_accepted() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(left, right):
@@ -23,6 +26,7 @@ def test_a_solution_satisfying_its_single_test_case_is_accepted() -> None:
 
 def test_a_solution_returning_something_else_than_the_expected_output_is_not_accepted() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(left, right):
@@ -37,6 +41,7 @@ def test_a_solution_returning_something_else_than_the_expected_output_is_not_acc
 
 def test_a_failing_test_case_reports_the_input_it_used_and_the_value_that_was_returned() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(left, right):
@@ -54,6 +59,7 @@ def test_a_failing_test_case_reports_the_input_it_used_and_the_value_that_was_re
 
 def test_every_test_case_is_judged_and_reported_in_the_order_it_was_given() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(number):
@@ -77,6 +83,7 @@ def test_every_test_case_is_judged_and_reported_in_the_order_it_was_given() -> N
 
 def test_each_test_case_is_judged_in_its_own_freshly_spawned_child_process() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import os
@@ -93,6 +100,7 @@ def test_each_test_case_is_judged_in_its_own_freshly_spawned_child_process() -> 
 
 def test_state_set_while_judging_one_test_case_is_not_visible_while_judging_another() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import sys
@@ -110,6 +118,7 @@ def test_state_set_while_judging_one_test_case_is_not_visible_while_judging_anot
 
 def test_a_solution_returning_tuples_where_lists_are_expected_is_accepted() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve():
@@ -124,6 +133,7 @@ def test_a_solution_returning_tuples_where_lists_are_expected_is_accepted() -> N
 
 def test_the_solution_runs_in_a_child_process_started_with_spawn() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import multiprocessing
@@ -140,6 +150,7 @@ def test_the_solution_runs_in_a_child_process_started_with_spawn() -> None:
 
 def test_the_expected_output_cannot_be_found_in_the_memory_of_the_child_process() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import gc
@@ -164,6 +175,7 @@ def test_a_submission_larger_than_the_pipe_buffer_is_judged_without_deadlocking(
     numbers = list(range(200_000))
 
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(numbers):

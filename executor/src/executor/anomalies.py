@@ -1,6 +1,6 @@
-import logging
+from executor.logs import a_log_carrying_the_submission_being_judged
 
-OPERATOR_ANOMALIES = logging.getLogger("executor.anomalies")
+OPERATOR_ANOMALIES = a_log_carrying_the_submission_being_judged("executor.anomalies")
 
 
 def record_a_sandbox_killed_from_outside(container: str) -> None:

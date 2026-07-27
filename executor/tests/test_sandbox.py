@@ -3,6 +3,7 @@ from typing import IO, cast
 
 import pytest
 from conftest import (
+    A_SUBMISSION,
     SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
     WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
     containers_still_on_the_host,
@@ -30,6 +31,7 @@ class JudgingFailedPartway(Exception):
 
 def test_no_container_outlives_the_submission_that_created_it() -> None:
     judge(
+        A_SUBMISSION,
         solution="def solve():\n    return 1\n",
         test_cases=[TestCase(input=[], expected_output=1)],
     )
@@ -39,6 +41,7 @@ def test_no_container_outlives_the_submission_that_created_it() -> None:
 
 def test_no_container_outlives_a_submission_killed_from_outside() -> None:
     judge(
+        A_SUBMISSION,
         solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
         test_cases=[TestCase(input=[0, WEDGES_ON_ITS_ONLY_TEST_CASE], expected_output=0)],
         limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
@@ -54,6 +57,7 @@ def test_no_container_outlives_a_submission_whose_judging_failed_partway(
 
     with pytest.raises(JudgingFailedPartway):
         judge(
+            A_SUBMISSION,
             solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
             test_cases=TEST_CASES_WEDGED_AFTER_THE_FIRST,
             limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
@@ -65,6 +69,7 @@ def test_no_container_outlives_a_submission_whose_judging_failed_partway(
 def test_repeated_failures_do_not_accumulate_containers_on_the_host() -> None:
     for _ in range(SUBMISSIONS_ENOUGH_TO_SHOW_CONTAINERS_PILING_UP):
         judged = judge(
+            A_SUBMISSION,
             solution=WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
             test_cases=[TestCase(input=[0, WEDGES_ON_ITS_ONLY_TEST_CASE], expected_output=0)],
             limits=SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,

@@ -1,23 +1,21 @@
 import textwrap
 
 import pytest
-from conftest import ALLOCATES_WITHOUT_BOUND, FILLS_THE_SANDBOX_WITH_PROCESSES
+from conftest import (
+    A_SUBMISSION,
+    ALLOCATES_WITHOUT_BOUND,
+    AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN,
+    FILLS_THE_SANDBOX_WITH_PROCESSES,
+    RETURNS_ITS_ARGUMENT,
+)
 
 from executor import sandbox
 from executor.judging import judge
 from executor.results import read_test_case_results
 from executor.submission import JudgedSubmission, TestCase, Verdict
 
-RETURNS_ITS_ARGUMENT = textwrap.dedent(
-    """
-    def solve(number):
-        return number
-    """
-)
-
 AN_ENDPOINT_NO_DOCKER_DAEMON_ANSWERS_ON = "tcp://127.0.0.1:1"
 NOWHERE_TO_FIND_A_DOCKER_COMMAND = ""
-AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN = "leet-lingo-sandbox-that-was-never-built:latest"
 
 NOTHING_A_TEST_CASE_RESULT_CAN_BE_READ_FROM = (
     "docker: Error response from daemon: the sandbox never answered\n"
@@ -74,7 +72,7 @@ def test_an_unreachable_docker_daemon_is_reported_as_a_platform_failure(
 ) -> None:
     monkeypatch.setenv("DOCKER_HOST", AN_ENDPOINT_NO_DOCKER_DAEMON_ANSWERS_ON)
 
-    judged = judge(solution=RETURNS_ITS_ARGUMENT, test_cases=THREE_TEST_CASES)
+    judged = judge(A_SUBMISSION, solution=RETURNS_ITS_ARGUMENT, test_cases=THREE_TEST_CASES)
 
     assert judged.verdict is Verdict.internal_error
 
@@ -84,7 +82,7 @@ def test_a_host_carrying_no_docker_command_is_reported_as_a_platform_failure(
 ) -> None:
     monkeypatch.setenv("PATH", NOWHERE_TO_FIND_A_DOCKER_COMMAND)
 
-    judged = judge(solution=RETURNS_ITS_ARGUMENT, test_cases=THREE_TEST_CASES)
+    judged = judge(A_SUBMISSION, solution=RETURNS_ITS_ARGUMENT, test_cases=THREE_TEST_CASES)
 
     assert judged.verdict is Verdict.internal_error
 
@@ -94,7 +92,7 @@ def test_a_missing_sandbox_image_is_reported_as_a_platform_failure(
 ) -> None:
     monkeypatch.setattr(sandbox, "SANDBOX_IMAGE", AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN)
 
-    judged = judge(solution=RETURNS_ITS_ARGUMENT, test_cases=THREE_TEST_CASES)
+    judged = judge(A_SUBMISSION, solution=RETURNS_ITS_ARGUMENT, test_cases=THREE_TEST_CASES)
 
     assert judged.verdict is Verdict.internal_error
 
@@ -109,7 +107,7 @@ def test_harness_output_carrying_no_test_case_result_is_reported_as_a_platform_f
 
 def test_no_attack_on_what_the_harness_reports_is_laundered_into_a_platform_failure() -> None:
     verdicts = {
-        attack: judge(solution=solution, test_cases=THREE_TEST_CASES).verdict
+        attack: judge(A_SUBMISSION, solution=solution, test_cases=THREE_TEST_CASES).verdict
         for attack, solution in ATTACKS_ON_WHAT_THE_HARNESS_REPORTS.items()
     }
 

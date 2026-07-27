@@ -1,11 +1,14 @@
 import textwrap
 
+from conftest import A_SUBMISSION
+
 from executor.judging import judge
 from executor.submission import TestCase, Verdict
 
 
 def test_what_a_solution_prints_comes_back_as_its_printed_output() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(number):
@@ -22,6 +25,7 @@ def test_what_a_solution_prints_comes_back_as_its_printed_output() -> None:
 
 def test_what_a_solution_prints_to_standard_error_is_captured_alongside_the_rest() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import sys
@@ -43,6 +47,7 @@ def test_what_a_solution_prints_to_standard_error_is_captured_alongside_the_rest
 
 def test_what_a_solution_printed_before_it_raised_comes_back_with_the_runtime_error() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(number):
@@ -60,6 +65,7 @@ def test_what_a_solution_printed_before_it_raised_comes_back_with_the_runtime_er
 
 def test_a_solution_printing_forged_result_lines_earns_the_verdict_its_return_values_do() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(number):
@@ -80,6 +86,7 @@ def test_a_solution_printing_forged_result_lines_earns_the_verdict_its_return_va
 
 def test_a_solution_forging_result_lines_past_print_earns_the_verdict_its_return_values_do() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import os

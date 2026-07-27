@@ -2,7 +2,11 @@ import textwrap
 import threading
 import time
 
-from conftest import ALLOCATES_WITHOUT_BOUND, FILLS_THE_SANDBOX_WITH_PROCESSES
+from conftest import (
+    A_SUBMISSION,
+    ALLOCATES_WITHOUT_BOUND,
+    FILLS_THE_SANDBOX_WITH_PROCESSES,
+)
 
 from executor.judging import judge
 from executor.limits import Limits
@@ -93,6 +97,7 @@ COMPARES_HOW_SOON_IT_WOULD_BE_KILLED_TO_THE_HARNESS = textwrap.dedent(
 
 def test_a_solution_allocating_without_bound_is_stopped_by_the_memory_limit() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=ALLOCATES_WITHOUT_BOUND,
         test_cases=[TestCase(input=[0], expected_output=0)],
     )
@@ -104,6 +109,7 @@ def test_the_test_cases_that_finished_before_the_memory_limit_are_reported_with_
     None
 ):
     judged = judge(
+        A_SUBMISSION,
         solution=ALLOCATES_WITHOUT_BOUND_ON_EVERY_TEST_CASE_BUT_THE_FIRST,
         test_cases=[TestCase(input=[number], expected_output=number) for number in range(3)],
     )
@@ -117,6 +123,7 @@ def test_the_test_cases_that_finished_before_the_memory_limit_are_reported_with_
 
 def test_the_memory_limit_kills_the_solution_before_the_harness_that_judges_it() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=COMPARES_HOW_SOON_IT_WOULD_BE_KILLED_TO_THE_HARNESS,
         test_cases=[TestCase(input=[], expected_output=True)],
     )
@@ -126,6 +133,7 @@ def test_the_memory_limit_kills_the_solution_before_the_harness_that_judges_it()
 
 def test_a_fork_bomb_is_contained_by_the_process_cap_rather_than_by_the_memory_limit() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=FILLS_THE_SANDBOX_WITH_PROCESSES,
         test_cases=[TestCase(input=[number], expected_output=number) for number in range(3)],
         limits=MORE_MEMORY_THAN_THE_PROCESS_CAP_ALLOWS_A_FORK_BOMB_TO_USE,
@@ -143,8 +151,9 @@ def test_the_memory_limit_is_supplied_per_submission_rather_than_baked_into_the_
         )
     ]
 
-    given_room = judge(solution=ALLOCATES_WHAT_IT_IS_ASKED_FOR, test_cases=test_cases)
+    given_room = judge(A_SUBMISSION, solution=ALLOCATES_WHAT_IT_IS_ASKED_FOR, test_cases=test_cases)
     denied_room = judge(
+        A_SUBMISSION,
         solution=ALLOCATES_WHAT_IT_IS_ASKED_FOR,
         test_cases=test_cases,
         limits=LESS_MEMORY_THAN_THE_SOLUTION_ASKS_FOR,
@@ -175,6 +184,7 @@ def test_a_solution_saturating_the_cpu_does_not_slow_a_submission_judged_alongsi
 def _judge_a_submission_that_works_the_cpu() -> tuple[float, JudgedSubmission]:
     started = time.monotonic()
     judged = judge(
+        A_SUBMISSION,
         solution=WORKS_THE_CPU,
         test_cases=[TestCase(input=[ROUNDS], expected_output=SUM_OF_THE_SQUARES_BELOW_ROUNDS)],
         limits=LONGER_THAN_THE_SATURATION_THIS_TEST_ARRANGES,
@@ -184,6 +194,7 @@ def _judge_a_submission_that_works_the_cpu() -> tuple[float, JudgedSubmission]:
 
 def _judge_a_solution_saturating_every_cpu_it_can_reach() -> JudgedSubmission:
     return judge(
+        A_SUBMISSION,
         solution=SATURATES_THE_CPU,
         test_cases=[TestCase(input=[SECONDS_OF_SATURATION, WORKERS], expected_output=WORKERS)],
         limits=LONGER_THAN_THE_SATURATION_THIS_TEST_ARRANGES,

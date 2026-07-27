@@ -1,11 +1,14 @@
 import textwrap
 
+from conftest import A_SUBMISSION
+
 from executor.judging import judge
 from executor.submission import TestCase, Verdict
 
 
 def test_a_solution_raising_an_exception_names_it_and_the_test_case_it_happened_on() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(divisor):
@@ -29,6 +32,7 @@ def test_a_solution_raising_an_exception_names_it_and_the_test_case_it_happened_
 
 def test_a_solution_with_a_syntax_error_reads_as_a_mistake_the_learner_can_fix() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve():
@@ -48,6 +52,7 @@ def test_a_solution_with_a_syntax_error_reads_as_a_mistake_the_learner_can_fix()
 
 def test_a_solution_defining_no_entry_point_is_told_which_name_was_expected() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def sovle(number):
@@ -67,6 +72,7 @@ def test_a_solution_defining_no_entry_point_is_told_which_name_was_expected() ->
 
 def test_a_solution_returning_a_value_that_cannot_be_reported_says_so_and_keeps_its_output() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             def solve(numbers):
@@ -86,6 +92,7 @@ def test_a_solution_returning_a_value_that_cannot_be_reported_says_so_and_keeps_
 
 def test_a_solution_exiting_on_an_early_test_case_leaves_the_rest_still_judged() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import sys
@@ -108,6 +115,7 @@ def test_a_solution_exiting_on_an_early_test_case_leaves_the_rest_still_judged()
 
 def test_a_solution_killing_its_process_on_an_early_test_case_leaves_the_rest_still_judged() -> None:
     judged = judge(
+        A_SUBMISSION,
         solution=textwrap.dedent(
             """
             import os
