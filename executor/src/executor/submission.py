@@ -14,6 +14,8 @@ class Verdict(StrEnum):
 
 STOPS_A_SUBMISSION = frozenset({Verdict.time_limit_exceeded, Verdict.memory_limit_exceeded})
 
+VERDICTS_A_TEST_CASE_CAN_REPORT = frozenset(Verdict) - {Verdict.internal_error}
+
 
 @dataclass(frozen=True)
 class TestCase:

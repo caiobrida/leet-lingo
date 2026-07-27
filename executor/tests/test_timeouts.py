@@ -1,17 +1,21 @@
 import logging
+import subprocess
 import textwrap
 import time
 
 import pytest
 from conftest import (
     A_SUBMISSION,
+    RETURNS_ITS_ARGUMENT,
     SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
     WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
 )
 
+from executor import sandbox
 from executor.anomalies import OPERATOR_ANOMALIES
 from executor.judging import judge
 from executor.limits import Limits
+from executor.streams import send_and_collect
 from executor.submission import TestCase, Verdict
 
 NEVER_RETURNS = textwrap.dedent(
@@ -87,6 +91,10 @@ WEDGED_TEST_CASES = [
 WHAT_A_WEDGED_SUBMISSION_REPORTS = [
     Verdict.accepted
 ] * TEST_CASES_THE_SOLUTION_ANSWERS_BEFORE_IT_WEDGES + [Verdict.time_limit_exceeded]
+
+TEST_CASES_ANSWERED_BEFORE_THE_KILL_LANDS = 3
+LATE_ENOUGH_TO_FIRE_ONCE_EVERY_RESULT_IS_IN = Limits(sandbox_seconds=3.0)
+SECONDS_THE_OUTER_TIMEOUT_IS_OUTLASTED_BY = 5.0
 
 
 def test_a_solution_that_never_returns_is_stopped_rather_than_left_to_hang() -> None:
@@ -178,6 +186,36 @@ def test_a_submission_killed_from_outside_keeps_the_results_that_finished_before
     results = judged.test_case_results
     assert len(results) < len(WEDGED_TEST_CASES)
     assert [result.verdict for result in results] == WHAT_A_WEDGED_SUBMISSION_REPORTS
+
+
+def test_a_sandbox_killed_from_outside_after_every_result_keeps_the_verdict_it_earned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sandbox, "send_and_collect", _collect_everything_then_outlast_the_timeout)
+
+    judged = judge(
+        A_SUBMISSION,
+        solution=RETURNS_ITS_ARGUMENT,
+        test_cases=[
+            TestCase(input=[number], expected_output=number)
+            for number in range(TEST_CASES_ANSWERED_BEFORE_THE_KILL_LANDS)
+        ],
+        limits=LATE_ENOUGH_TO_FIRE_ONCE_EVERY_RESULT_IS_IN,
+    )
+
+    assert [result.verdict for result in judged.test_case_results] == [
+        Verdict.accepted
+    ] * TEST_CASES_ANSWERED_BEFORE_THE_KILL_LANDS
+    assert judged.verdict is Verdict.accepted
+
+
+def _collect_everything_then_outlast_the_timeout(
+    process: "subprocess.Popen[str]",
+    document: str,
+) -> str:
+    collected = send_and_collect(process, document)
+    time.sleep(SECONDS_THE_OUTER_TIMEOUT_IS_OUTLASTED_BY)
+    return collected
 
 
 def test_a_sandbox_killed_from_outside_is_recorded_as_an_operator_anomaly(

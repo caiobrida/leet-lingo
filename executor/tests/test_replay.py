@@ -205,6 +205,25 @@ def test_the_document_obtained_without_judging_is_the_one_judging_sends(
     ]
 
 
+def test_the_document_an_operator_is_handed_is_byte_for_byte_the_one_judging_would_send(
+    tmp_path: Path,
+) -> None:
+    replayed = _a_replay_an_operator_runs(
+        tmp_path,
+        RETURNS_ITS_ARGUMENT,
+        THREE_TEST_CASES,
+        LIMITS_A_SUBMISSION_IS_REPLAYED_UNDER,
+        "--document",
+    )
+
+    assert replayed.returncode == 0
+    assert replayed.stdout == the_document_a_sandbox_receives(
+        RETURNS_ITS_ARGUMENT,
+        THREE_TEST_CASES,
+        LIMITS_A_SUBMISSION_IS_REPLAYED_UNDER,
+    )
+
+
 def test_a_replay_an_operator_runs_reproduces_the_submission_that_was_reported(
     tmp_path: Path,
 ) -> None:

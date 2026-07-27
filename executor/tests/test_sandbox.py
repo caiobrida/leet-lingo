@@ -1,4 +1,5 @@
 import subprocess
+import textwrap
 from typing import IO, cast
 
 import pytest
@@ -24,6 +25,17 @@ TEST_CASES_WEDGED_AFTER_THE_FIRST = [
 
 SUBMISSIONS_ENOUGH_TO_SHOW_CONTAINERS_PILING_UP = 3
 
+SUBMISSIONS_ENOUGH_TO_SHOW_A_SANDBOX_REUSED = 2
+
+NAMES_THE_SANDBOX_IT_RUNS_IN = textwrap.dedent(
+    """
+    import os
+
+    def solve():
+        return os.uname().nodename
+    """
+)
+
 
 class JudgingFailedPartway(Exception):
     pass
@@ -37,6 +49,22 @@ def test_no_container_outlives_the_submission_that_created_it() -> None:
     )
 
     assert containers_still_on_the_host() == []
+
+
+def test_no_sandbox_is_reused_by_the_submission_that_follows_it() -> None:
+    sandboxes = [
+        judge(
+            A_SUBMISSION,
+            solution=NAMES_THE_SANDBOX_IT_RUNS_IN,
+            test_cases=[TestCase(input=[], expected_output=None)],
+        )
+        .test_case_results[0]
+        .returned
+        for _ in range(SUBMISSIONS_ENOUGH_TO_SHOW_A_SANDBOX_REUSED)
+    ]
+
+    assert all(sandboxes)
+    assert len(set(sandboxes)) == len(sandboxes)
 
 
 def test_no_container_outlives_a_submission_killed_from_outside() -> None:
