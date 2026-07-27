@@ -22,6 +22,12 @@ NOTHING_A_TEST_CASE_RESULT_CAN_BE_READ_FROM = (
     "See 'docker run --help'.\n"
 )
 
+A_RESULT_STREAM_CLAIMING_THE_PLATFORM_ITSELF_FAILED = (
+    '{"verdict": "accepted", "returned": 0}\n'
+    '{"verdict": "internal_error"}\n'
+    '{"verdict": "accepted", "returned": 2}\n'
+)
+
 THREE_TEST_CASES = [TestCase(input=[number], expected_output=number) for number in range(3)]
 
 KILLS_THE_HARNESS_THAT_JUDGES_IT = textwrap.dedent(
@@ -103,6 +109,15 @@ def test_harness_output_carrying_no_test_case_result_is_reported_as_a_platform_f
     judged = JudgedSubmission(test_case_results=results, test_case_count=len(THREE_TEST_CASES))
 
     assert judged.verdict is Verdict.internal_error
+
+
+def test_no_test_case_result_is_read_from_a_stream_claiming_the_platform_itself_failed() -> None:
+    results = read_test_case_results(
+        A_RESULT_STREAM_CLAIMING_THE_PLATFORM_ITSELF_FAILED,
+        THREE_TEST_CASES,
+    )
+
+    assert [result.verdict for result in results] == [Verdict.accepted]
 
 
 def test_no_attack_on_what_the_harness_reports_is_laundered_into_a_platform_failure() -> None:

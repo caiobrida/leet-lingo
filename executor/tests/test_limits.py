@@ -41,6 +41,40 @@ LONGER_THAN_THE_SATURATION_THIS_TEST_ARRANGES = Limits(
 ROUNDS = 60_000_000
 SUM_OF_THE_SQUARES_BELOW_ROUNDS = (ROUNDS - 1) * ROUNDS * (2 * ROUNDS - 1) // 6
 
+ROUNDS_A_WHOLE_CPU_FINISHES_WELL_INSIDE_THE_TIMEOUT = 5_000_000
+SUM_OF_THE_SQUARES_BELOW_THOSE_ROUNDS = (
+    (ROUNDS_A_WHOLE_CPU_FINISHES_WELL_INSIDE_THE_TIMEOUT - 1)
+    * ROUNDS_A_WHOLE_CPU_FINISHES_WELL_INSIDE_THE_TIMEOUT
+    * (2 * ROUNDS_A_WHOLE_CPU_FINISHES_WELL_INSIDE_THE_TIMEOUT - 1)
+    // 6
+)
+
+A_WHOLE_CPU = Limits(cpus=1.0, test_case_seconds=3.0, sandbox_seconds=60.0)
+A_TENTH_OF_A_CPU = Limits(cpus=0.1, test_case_seconds=3.0, sandbox_seconds=60.0)
+
+PROCESSES_THE_DEFAULT_CAP_HAS_ROOM_FOR = 40
+FEWER_PROCESSES_THAN_THE_SOLUTION_STARTS = Limits(processes=16)
+
+STARTS_THE_PROCESSES_IT_IS_ASKED_FOR = textwrap.dedent(
+    """
+    import os
+    import time
+
+    def solve(processes):
+        started = []
+        for _ in range(processes):
+            child = os.fork()
+            if child == 0:
+                time.sleep(30)
+                os._exit(0)
+            started.append(child)
+        for child in started:
+            os.kill(child, 9)
+            os.waitpid(child, 0)
+        return len(started)
+    """
+)
+
 SATURATES_THE_CPU = textwrap.dedent(
     """
     import os
@@ -78,6 +112,22 @@ ALLOCATES_WITHOUT_BOUND_ON_EVERY_TEST_CASE_BUT_THE_FIRST = textwrap.dedent(
         blocks = []
         while True:
             blocks.append(bytearray(8 * 1024 * 1024))
+    """
+)
+
+STARVES_A_PROCESS_IT_STARTED_THEN_STOPS_WITHOUT_REPORTING = textwrap.dedent(
+    """
+    import os
+
+    def solve(number):
+        if number > 0:
+            os._exit(1)
+        if os.fork() == 0:
+            blocks = []
+            while True:
+                blocks.append(bytearray(8 * 1024 * 1024))
+        os.wait()
+        return number
     """
 )
 
@@ -121,6 +171,20 @@ def test_the_test_cases_that_finished_before_the_memory_limit_are_reported_with_
     ]
 
 
+def test_a_solution_stopping_without_reporting_is_not_blamed_on_an_earlier_memory_kill() -> None:
+    judged = judge(
+        A_SUBMISSION,
+        solution=STARVES_A_PROCESS_IT_STARTED_THEN_STOPS_WITHOUT_REPORTING,
+        test_cases=[TestCase(input=[number], expected_output=number) for number in range(2)],
+    )
+
+    assert [result.verdict for result in judged.test_case_results] == [
+        Verdict.accepted,
+        Verdict.runtime_error,
+    ]
+    assert judged.verdict is Verdict.runtime_error
+
+
 def test_the_memory_limit_kills_the_solution_before_the_harness_that_judges_it() -> None:
     judged = judge(
         A_SUBMISSION,
@@ -161,6 +225,47 @@ def test_the_memory_limit_is_supplied_per_submission_rather_than_baked_into_the_
 
     assert given_room.verdict is Verdict.accepted
     assert denied_room.verdict is Verdict.memory_limit_exceeded
+
+
+def test_the_cpu_cap_is_supplied_per_submission_rather_than_baked_into_the_sandbox() -> None:
+    test_cases = [
+        TestCase(
+            input=[ROUNDS_A_WHOLE_CPU_FINISHES_WELL_INSIDE_THE_TIMEOUT],
+            expected_output=SUM_OF_THE_SQUARES_BELOW_THOSE_ROUNDS,
+        )
+    ]
+
+    given_a_whole_cpu = judge(
+        A_SUBMISSION, solution=WORKS_THE_CPU, test_cases=test_cases, limits=A_WHOLE_CPU
+    )
+    given_a_tenth_of_one = judge(
+        A_SUBMISSION, solution=WORKS_THE_CPU, test_cases=test_cases, limits=A_TENTH_OF_A_CPU
+    )
+
+    assert given_a_whole_cpu.verdict is Verdict.accepted
+    assert given_a_tenth_of_one.verdict is Verdict.time_limit_exceeded
+
+
+def test_the_process_cap_is_supplied_per_submission_rather_than_baked_into_the_sandbox() -> None:
+    test_cases = [
+        TestCase(
+            input=[PROCESSES_THE_DEFAULT_CAP_HAS_ROOM_FOR],
+            expected_output=PROCESSES_THE_DEFAULT_CAP_HAS_ROOM_FOR,
+        )
+    ]
+
+    given_room = judge(
+        A_SUBMISSION, solution=STARTS_THE_PROCESSES_IT_IS_ASKED_FOR, test_cases=test_cases
+    )
+    denied_room = judge(
+        A_SUBMISSION,
+        solution=STARTS_THE_PROCESSES_IT_IS_ASKED_FOR,
+        test_cases=test_cases,
+        limits=FEWER_PROCESSES_THAN_THE_SOLUTION_STARTS,
+    )
+
+    assert given_room.verdict is Verdict.accepted
+    assert denied_room.verdict is Verdict.runtime_error
 
 
 def test_a_solution_saturating_the_cpu_does_not_slow_a_submission_judged_alongside_it() -> None:

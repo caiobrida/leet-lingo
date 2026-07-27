@@ -2,7 +2,12 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
-from executor.submission import TestCase, TestCaseResult, Verdict
+from executor.submission import (
+    VERDICTS_A_TEST_CASE_CAN_REPORT,
+    TestCase,
+    TestCaseResult,
+    Verdict,
+)
 
 
 def read_test_case_results(
@@ -48,6 +53,7 @@ def _read_verdict(reported: Any) -> Verdict | None:
     if not isinstance(reported, str):
         return None
     try:
-        return Verdict(reported)
+        verdict = Verdict(reported)
     except ValueError:
         return None
+    return verdict if verdict in VERDICTS_A_TEST_CASE_CAN_REPORT else None

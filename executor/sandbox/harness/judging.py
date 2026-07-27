@@ -7,7 +7,7 @@ from multiprocessing.connection import Connection
 from typing import Any
 
 from harness.child import run_solution
-from harness.memory_limit import has_killed_a_process
+from harness.memory_limit import has_killed_a_process_since, processes_the_memory_limit_has_killed
 from harness.payload import Limits, TestCase
 from harness.solution_processes import kill_everything_the_solution_started
 
@@ -46,12 +46,13 @@ def judge_test_cases(
 
 
 def _judge_test_case(solution: str, test_case: TestCase, seconds: float) -> dict[str, Any]:
+    killed_before_the_test_case = processes_the_memory_limit_has_killed()
     reported = _run_in_child_process(solution, test_case.input, seconds)
     if reported.report is not None:
         return _test_case_result(reported.report, test_case.expected_output)
     if reported.ran_out_of_time:
         return _out_of_time()
-    if has_killed_a_process():
+    if has_killed_a_process_since(killed_before_the_test_case):
         return {"verdict": MEMORY_LIMIT_EXCEEDED, "printed_output": ""}
     return {
         "verdict": RUNTIME_ERROR,
