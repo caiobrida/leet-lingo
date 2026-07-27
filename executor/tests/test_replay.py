@@ -4,15 +4,23 @@ import shlex
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 
 import pytest
-from conftest import A_SUBMISSION, RETURNS_ITS_ARGUMENT, containers_still_on_the_host
+from conftest import (
+    A_SUBMISSION,
+    RETURNS_ITS_ARGUMENT,
+    SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
+    WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
+    containers_still_on_the_host,
+)
 
 from executor import sandbox
 from executor.judging import judge
 from executor.limits import Limits
 from executor.logs import the_executors_log_format
+from executor.replay import THE_STATUS_A_REPLAY_KILLED_FROM_OUTSIDE_LEAVES
 from executor.results import read_test_case_results
 from executor.sandbox import (
     SANDBOX_IMAGE,
@@ -58,6 +66,9 @@ EVERY_LIMIT_AN_OPERATOR_READS_OFF_THE_LOGS = {
 
 HOW_MANY_TEST_CASES_THE_SUBMISSION_HAD = "3 test cases"
 
+WEDGES_ON_ITS_ONLY_TEST_CASE = 0
+SECONDS_FOR_A_KILLED_CONTAINER_TO_LEAVE_THE_HOST = 15.0
+
 A_SUBMISSION_REPLAYED_FROM_WHAT_ITS_LOG_LINES_RECORD = "submission-replayed-from-its-log-lines"
 
 AN_EXPECTED_OUTPUT_NOTHING_MAY_RETAIN = "the-expected-output-nothing-may-retain"
@@ -85,6 +96,8 @@ def _the_flags_the_logs_would_have_named(limits: Limits) -> list[str]:
         str(limits.test_case_seconds),
         "--submission-seconds",
         str(limits.submission_seconds),
+        "--sandbox-seconds",
+        str(limits.sandbox_seconds),
         "--memory-bytes",
         str(limits.memory_bytes),
         "--cpus",
@@ -92,6 +105,14 @@ def _the_flags_the_logs_would_have_named(limits: Limits) -> list[str]:
         "--processes",
         str(limits.processes),
     ]
+
+
+def _the_host_once_a_killed_replay_has_left_it() -> list[str]:
+    give_up_at = time.monotonic() + SECONDS_FOR_A_KILLED_CONTAINER_TO_LEAVE_THE_HOST
+    still_on_the_host = containers_still_on_the_host()
+    while still_on_the_host != [] and time.monotonic() < give_up_at:
+        still_on_the_host = containers_still_on_the_host()
+    return still_on_the_host
 
 
 def _a_replay_an_operator_runs(
@@ -124,7 +145,6 @@ def _a_replay_an_operator_runs(
         ],
         capture_output=True,
         text=True,
-        check=True,
     )
 
 
@@ -163,9 +183,9 @@ def test_the_document_obtained_without_judging_is_the_one_judging_sends(
 ) -> None:
     sent: list[str] = []
 
-    def keep_what_the_sandbox_was_sent(process: "subprocess.Popen[str]", payload: str) -> str:
-        sent.append(payload)
-        return send_and_collect(process, payload)
+    def keep_what_the_sandbox_was_sent(process: "subprocess.Popen[str]", document: str) -> str:
+        sent.append(document)
+        return send_and_collect(process, document)
 
     monkeypatch.setattr(sandbox, "send_and_collect", keep_what_the_sandbox_was_sent)
 
@@ -203,7 +223,20 @@ def test_a_replay_an_operator_runs_reproduces_the_submission_that_was_reported(
     )
 
     assert judged.verdict is Verdict.wrong_answer
+    assert replayed.returncode == 0
     assert read_test_case_results(replayed.stdout, THREE_TEST_CASES) == judged.test_case_results
+
+
+def test_a_replay_of_a_submission_that_never_stops_is_killed_from_outside(tmp_path: Path) -> None:
+    replayed = _a_replay_an_operator_runs(
+        tmp_path,
+        WEDGES_THE_HARNESS_WAITING_FOR_A_REPORT_IT_WILL_NEVER_FINISH,
+        [TestCase(input=[0, WEDGES_ON_ITS_ONLY_TEST_CASE], expected_output=0)],
+        SOONER_THAN_THE_HARNESS_WOULD_HAVE_GIVEN_UP,
+    )
+
+    assert replayed.returncode == THE_STATUS_A_REPLAY_KILLED_FROM_OUTSIDE_LEAVES
+    assert _the_host_once_a_killed_replay_has_left_it() == []
 
 
 def test_the_document_and_the_command_an_operator_is_given_reproduce_the_submission_by_hand(
@@ -281,7 +314,7 @@ def test_neither_the_solution_nor_the_expected_outputs_reach_a_log_line(
     ] == []
 
 
-def test_judging_a_submission_leaves_nothing_behind_on_the_host(
+def test_judging_a_submission_writes_nothing_to_disk(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:

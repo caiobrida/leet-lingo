@@ -3,11 +3,11 @@ import threading
 from typing import IO, cast
 
 
-def send_and_collect(process: "subprocess.Popen[str]", payload: str) -> str:
+def send_and_collect(process: "subprocess.Popen[str]", document: str) -> str:
     def write_until_the_process_stops_reading(stream: IO[str]) -> None:
         try:
             with stream:
-                stream.write(payload)
+                stream.write(document)
         except OSError:
             pass
 

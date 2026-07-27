@@ -64,6 +64,13 @@ def the_document_a_sandbox_receives(
     )
 
 
+def kill_the_container(container: str) -> None:
+    try:
+        subprocess.run(["docker", "kill", container], capture_output=True)
+    except OSError:
+        pass
+
+
 def the_command_a_document_is_piped_into(limits: Limits, *traced_as: str) -> list[str]:
     return [
         "docker",
@@ -82,15 +89,15 @@ def the_command_a_document_is_piped_into(limits: Limits, *traced_as: str) -> lis
     ]
 
 
-def run_sandbox(submission_id: str, payload: str, limits: Limits) -> EmittedByTheSandbox:
+def run_sandbox(submission_id: str, document: str, limits: Limits) -> EmittedByTheSandbox:
     container = _a_name_for_one_container()
     sandbox = _start_the_sandbox(submission_id, container, limits)
     if sandbox is None:
         return EMITTED_BY_A_SANDBOX_THAT_NEVER_STARTED
     try:
-        return _collect_until_the_sandbox_stops(sandbox, container, payload, limits)
+        return _collect_until_the_sandbox_stops(sandbox, container, document, limits)
     except BaseException:
-        _kill_the_container(container)
+        kill_the_container(container)
         sandbox.wait()
         raise
 
@@ -98,7 +105,7 @@ def run_sandbox(submission_id: str, payload: str, limits: Limits) -> EmittedByTh
 def _collect_until_the_sandbox_stops(
     sandbox: "subprocess.Popen[str]",
     container: str,
-    payload: str,
+    document: str,
     limits: Limits,
 ) -> EmittedByTheSandbox:
     killed_from_outside = threading.Event()
@@ -109,7 +116,7 @@ def _collect_until_the_sandbox_stops(
     )
     killing.start()
     try:
-        collected = send_and_collect(sandbox, payload)
+        collected = send_and_collect(sandbox, document)
         sandbox.wait()
     finally:
         killing.cancel()
@@ -147,14 +154,7 @@ def _kill_the_container_from_outside(
 ) -> None:
     killed_from_outside.set()
     record_a_sandbox_killed_from_outside(container)
-    _kill_the_container(container)
-
-
-def _kill_the_container(container: str) -> None:
-    try:
-        subprocess.run(["docker", "kill", container], capture_output=True)
-    except OSError:
-        pass
+    kill_the_container(container)
 
 
 def _a_name_for_one_container() -> str:

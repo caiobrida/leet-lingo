@@ -91,8 +91,8 @@ def test_the_sandbox_image_installs_no_third_party_packages() -> None:
     assert installed.stdout.split() == []
 
 
-def _fail_once_the_sandbox_is_judging(process: "subprocess.Popen[str]", payload: str) -> str:
+def _fail_once_the_sandbox_is_judging(process: "subprocess.Popen[str]", document: str) -> str:
     with cast(IO[str], process.stdin) as stdin:
-        stdin.write(payload)
+        stdin.write(document)
     cast(IO[str], process.stdout).readline()
     raise JudgingFailedPartway
