@@ -75,10 +75,10 @@ def test_a_container_can_be_traced_back_to_the_submission_that_created_it(
 
     def trace_the_container_while_it_is_still_judging(
         process: "subprocess.Popen[str]",
-        payload: str,
+        document: str,
     ) -> str:
         traced.extend(_containers_labelled_with(A_SUBMISSION_TRACED_BACK_TO_FROM_ITS_CONTAINER))
-        return send_and_collect(process, payload)
+        return send_and_collect(process, document)
 
     monkeypatch.setattr(sandbox, "send_and_collect", trace_the_container_while_it_is_still_judging)
 

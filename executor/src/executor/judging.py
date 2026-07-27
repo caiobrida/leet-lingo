@@ -1,11 +1,13 @@
-import json
 from collections.abc import Sequence
 
-from executor.limits import Limits
-from executor.logs import log_lines_carrying_the_submission
+from executor.limits import Limits, every_limit_named
+from executor.logs import (
+    a_log_carrying_the_submission_being_judged,
+    log_lines_carrying_the_submission,
+)
 from executor.metrics import count_the_verdict
 from executor.results import read_test_case_results
-from executor.sandbox import run_sandbox
+from executor.sandbox import run_sandbox, the_document_a_sandbox_receives
 from executor.submission import (
     STOPS_A_SUBMISSION,
     JudgedSubmission,
@@ -15,6 +17,9 @@ from executor.submission import (
 )
 
 
+SUBMISSIONS_BEING_JUDGED = a_log_carrying_the_submission_being_judged("executor.judging")
+
+
 def judge(
     submission_id: str,
     solution: str,
@@ -22,7 +27,12 @@ def judge(
     limits: Limits = Limits(),
 ) -> JudgedSubmission:
     with log_lines_carrying_the_submission(submission_id):
-        emitted = run_sandbox(submission_id, _payload(solution, test_cases, limits), limits)
+        _record_what_replaying_this_submission_would_need(test_cases, limits)
+        emitted = run_sandbox(
+            submission_id,
+            the_document_a_sandbox_receives(solution, test_cases, limits),
+            limits,
+        )
         results = read_test_case_results(emitted.stream, test_cases)
         if emitted.killed_from_outside:
             results = _with_the_test_case_it_was_killed_on(results, test_cases)
@@ -34,19 +44,14 @@ def judge(
         return judged
 
 
-def _payload(solution: str, test_cases: Sequence[TestCase], limits: Limits) -> str:
-    return json.dumps(
-        {
-            "solution": solution,
-            "test_cases": [
-                {"input": test_case.input, "expected_output": test_case.expected_output}
-                for test_case in test_cases
-            ],
-            "limits": {
-                "test_case_seconds": limits.test_case_seconds,
-                "submission_seconds": limits.submission_seconds,
-            },
-        }
+def _record_what_replaying_this_submission_would_need(
+    test_cases: Sequence[TestCase],
+    limits: Limits,
+) -> None:
+    SUBMISSIONS_BEING_JUDGED.info(
+        "judging %d test cases under %s",
+        len(test_cases),
+        every_limit_named(limits),
     )
 
 

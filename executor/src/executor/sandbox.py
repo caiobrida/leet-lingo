@@ -1,12 +1,15 @@
+import json
 import subprocess
 import threading
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from executor.anomalies import record_a_sandbox_killed_from_outside
 from executor.limits import Limits
 from executor.logs import carrying_the_submission_into_another_thread
 from executor.streams import send_and_collect
+from executor.submission import TestCase
 
 SANDBOX_IMAGE = "leet-lingo-sandbox:latest"
 
@@ -41,15 +44,60 @@ class EmittedByTheSandbox:
 EMITTED_BY_A_SANDBOX_THAT_NEVER_STARTED = EmittedByTheSandbox(stream="", killed_from_outside=False)
 
 
-def run_sandbox(submission_id: str, payload: str, limits: Limits) -> EmittedByTheSandbox:
+def the_document_a_sandbox_receives(
+    solution: str,
+    test_cases: Sequence[TestCase],
+    limits: Limits,
+) -> str:
+    return json.dumps(
+        {
+            "solution": solution,
+            "test_cases": [
+                {"input": test_case.input, "expected_output": test_case.expected_output}
+                for test_case in test_cases
+            ],
+            "limits": {
+                "test_case_seconds": limits.test_case_seconds,
+                "submission_seconds": limits.submission_seconds,
+            },
+        }
+    )
+
+
+def kill_the_container(container: str) -> None:
+    try:
+        subprocess.run(["docker", "kill", container], capture_output=True)
+    except OSError:
+        pass
+
+
+def the_command_a_document_is_piped_into(limits: Limits, *traced_as: str) -> list[str]:
+    return [
+        "docker",
+        "run",
+        "--rm",
+        "--interactive",
+        *traced_as,
+        *NOTHING_TO_REACH_OUTSIDE_THE_SANDBOX,
+        *NOTHING_WRITABLE_INSIDE_THE_SANDBOX,
+        *NO_PRIVILEGE_BEYOND_GIVING_THE_SOLUTION_A_USER_AND_KILLING_IT,
+        f"--memory={limits.memory_bytes}b",
+        f"--memory-swap={limits.memory_bytes}b",
+        f"--cpus={limits.cpus}",
+        f"--pids-limit={limits.processes}",
+        SANDBOX_IMAGE,
+    ]
+
+
+def run_sandbox(submission_id: str, document: str, limits: Limits) -> EmittedByTheSandbox:
     container = _a_name_for_one_container()
     sandbox = _start_the_sandbox(submission_id, container, limits)
     if sandbox is None:
         return EMITTED_BY_A_SANDBOX_THAT_NEVER_STARTED
     try:
-        return _collect_until_the_sandbox_stops(sandbox, container, payload, limits)
+        return _collect_until_the_sandbox_stops(sandbox, container, document, limits)
     except BaseException:
-        _kill_the_container(container)
+        kill_the_container(container)
         sandbox.wait()
         raise
 
@@ -57,7 +105,7 @@ def run_sandbox(submission_id: str, payload: str, limits: Limits) -> EmittedByTh
 def _collect_until_the_sandbox_stops(
     sandbox: "subprocess.Popen[str]",
     container: str,
-    payload: str,
+    document: str,
     limits: Limits,
 ) -> EmittedByTheSandbox:
     killed_from_outside = threading.Event()
@@ -68,7 +116,7 @@ def _collect_until_the_sandbox_stops(
     )
     killing.start()
     try:
-        collected = send_and_collect(sandbox, payload)
+        collected = send_and_collect(sandbox, document)
         sandbox.wait()
     finally:
         killing.cancel()
@@ -86,7 +134,11 @@ def _start_the_sandbox(
 ) -> "subprocess.Popen[str] | None":
     try:
         return subprocess.Popen(
-            _docker_run_command(submission_id, container, limits),
+            the_command_a_document_is_piped_into(
+                limits,
+                f"--name={container}",
+                f"--label={THE_SUBMISSION_A_CONTAINER_CARRIES}={submission_id}",
+            ),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -102,34 +154,8 @@ def _kill_the_container_from_outside(
 ) -> None:
     killed_from_outside.set()
     record_a_sandbox_killed_from_outside(container)
-    _kill_the_container(container)
-
-
-def _kill_the_container(container: str) -> None:
-    try:
-        subprocess.run(["docker", "kill", container], capture_output=True)
-    except OSError:
-        pass
+    kill_the_container(container)
 
 
 def _a_name_for_one_container() -> str:
     return f"{A_NAME_ONLY_OUR_CONTAINERS_CARRY}{uuid.uuid4().hex}"
-
-
-def _docker_run_command(submission_id: str, container: str, limits: Limits) -> list[str]:
-    return [
-        "docker",
-        "run",
-        "--rm",
-        "--interactive",
-        f"--name={container}",
-        f"--label={THE_SUBMISSION_A_CONTAINER_CARRIES}={submission_id}",
-        *NOTHING_TO_REACH_OUTSIDE_THE_SANDBOX,
-        *NOTHING_WRITABLE_INSIDE_THE_SANDBOX,
-        *NO_PRIVILEGE_BEYOND_GIVING_THE_SOLUTION_A_USER_AND_KILLING_IT,
-        f"--memory={limits.memory_bytes}b",
-        f"--memory-swap={limits.memory_bytes}b",
-        f"--cpus={limits.cpus}",
-        f"--pids-limit={limits.processes}",
-        SANDBOX_IMAGE,
-    ]
