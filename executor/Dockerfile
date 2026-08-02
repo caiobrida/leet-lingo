@@ -2,6 +2,8 @@ FROM python:3.13-slim
 
 COPY --from=docker:28-cli /usr/local/bin/docker /usr/local/bin/docker
 
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /opt/executor
 
 COPY pyproject.toml ./

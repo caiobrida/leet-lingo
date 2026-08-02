@@ -25,7 +25,7 @@ BETWEEN_ASKING_WHETHER_THE_SERVICE_IS_UP = 0.2
 LONGEST_A_SUBMISSION_IS_WAITED_FOR = 60.0
 
 FINDING_THE_DOCKER_CLIENT = ("sh", "-c", "command -v docker")
-IMPORTING_THE_HARNESS_THE_SANDBOX_RUNS = ("python", "-c", "import harness")
+FINDING_THE_HARNESS_THE_SANDBOX_RUNS = ("sh", "-c", "find / -xdev -name harness")
 
 A_SUBMISSION_JUDGED_FROM_INSIDE_THE_SERVICE = "submission-judged-from-inside-the-service"
 A_SUBMISSION_LEAVING_NO_CONTAINER_BEHIND_ON_THE_HOST = (
@@ -33,7 +33,7 @@ A_SUBMISSION_LEAVING_NO_CONTAINER_BEHIND_ON_THE_HOST = (
 )
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def built_service_image() -> None:
     subprocess.run(
         ["docker", "build", "--tag", SERVICE_IMAGE, str(SERVICE_BUILD_CONTEXT)],
@@ -43,7 +43,7 @@ def built_service_image() -> None:
 
 
 @pytest.fixture(scope="module")
-def judging_service() -> Iterator[str]:
+def judging_service(built_service_image: None) -> Iterator[str]:
     subprocess.run(
         [
             "docker",
@@ -81,7 +81,7 @@ def test_the_service_image_judges_a_submission_from_inside_a_container_of_its_ow
 def test_a_submission_judged_from_inside_the_service_leaves_no_container_behind(
     judging_service: str,
 ) -> None:
-    httpx2.post(
+    answered = httpx2.post(
         f"{judging_service}/submissions",
         json=a_submission_whose_solution_is_correct(
             A_SUBMISSION_LEAVING_NO_CONTAINER_BEHIND_ON_THE_HOST
@@ -89,24 +89,29 @@ def test_a_submission_judged_from_inside_the_service_leaves_no_container_behind(
         timeout=LONGEST_A_SUBMISSION_IS_WAITED_FOR,
     )
 
+    assert answered.json()["verdict"] == Verdict.accepted.value
     assert containers_still_on_the_host() == []
 
 
-def test_the_service_image_carries_the_docker_client_and_no_part_of_the_sandbox() -> None:
-    assert _succeeds_inside(SERVICE_IMAGE, *FINDING_THE_DOCKER_CLIENT)
-    assert not _succeeds_inside(SERVICE_IMAGE, *IMPORTING_THE_HARNESS_THE_SANDBOX_RUNS)
+def test_the_service_image_carries_the_docker_client_and_no_part_of_the_sandbox(
+    built_service_image: None,
+) -> None:
+    assert _what_the_image_finds(SERVICE_IMAGE, *FINDING_THE_DOCKER_CLIENT) != ""
+    assert _what_the_image_finds(SERVICE_IMAGE, *FINDING_THE_HARNESS_THE_SANDBOX_RUNS) == ""
 
 
-def test_the_sandbox_image_carries_no_client_that_could_reach_the_docker_daemon() -> None:
-    assert not _succeeds_inside(SANDBOX_IMAGE, *FINDING_THE_DOCKER_CLIENT)
+def test_the_sandbox_image_carries_the_harness_and_no_client_that_could_reach_the_daemon() -> None:
+    assert _what_the_image_finds(SANDBOX_IMAGE, *FINDING_THE_HARNESS_THE_SANDBOX_RUNS) != ""
+    assert _what_the_image_finds(SANDBOX_IMAGE, *FINDING_THE_DOCKER_CLIENT) == ""
 
 
-def _succeeds_inside(image: str, *command: str) -> bool:
-    ran = subprocess.run(
+def _what_the_image_finds(image: str, *command: str) -> str:
+    found = subprocess.run(
         ["docker", "run", "--rm", "--entrypoint", command[0], image, *command[1:]],
         capture_output=True,
+        text=True,
     )
-    return ran.returncode == 0
+    return found.stdout.strip()
 
 
 def _the_address_the_service_answers_on() -> str:
