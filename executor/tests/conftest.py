@@ -1,7 +1,9 @@
 import subprocess
 import textwrap
 from collections.abc import Iterator
+from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -83,6 +85,15 @@ def built_sandbox_image() -> None:
 def executor() -> Iterator[TestClient]:
     with TestClient(app) as client:
         yield client
+
+
+def a_submission_whose_solution_is_correct(submission_id: str) -> dict[str, Any]:
+    return {
+        "submission_id": submission_id,
+        "solution": RETURNS_ITS_ARGUMENT,
+        "test_cases": [{"input": [1], "expected_output": 1}],
+        "limits": asdict(Limits()),
+    }
 
 
 def containers_still_on_the_host() -> list[str]:
