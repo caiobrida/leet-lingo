@@ -5,7 +5,7 @@ from executor.judging import judge
 from executor.logs import configure_the_executors_logs
 from executor.metrics import THE_FORMAT_A_SCRAPE_IS_READ_IN, the_metrics_an_operator_scrapes
 from executor.payloads import (
-    JudgedSubmissionAnswered,
+    AnsweredToTheCaller,
     SubmissionToJudge,
     the_answer_a_caller_receives,
 )
@@ -29,7 +29,7 @@ def metrics() -> Response:
 
 
 @app.post("/submissions")
-async def judge_a_submission(sent: SubmissionToJudge) -> JudgedSubmissionAnswered:
+async def judge_a_submission(sent: SubmissionToJudge) -> AnsweredToTheCaller:
     judged = await run_in_threadpool(
         judge,
         sent.submission_id,

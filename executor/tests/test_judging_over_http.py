@@ -19,7 +19,8 @@ A_SUBMISSION_NEVER_TOLD_WHAT_IT_WAS_JUDGED_AGAINST = (
 A_SUBMISSION_THE_EXECUTOR_NEVER_RENAMES = "submission-the-executor-never-renames"
 A_SUBMISSION_JUDGED_AS_IT_ARRIVED = "submission-judged-as-it-arrived"
 A_SUBMISSION_NAMING_THE_LIMITS_IT_IS_JUDGED_UNDER = "submission-naming-the-limits-it-is-judged-under"
-A_SUBMISSION_NAMING_NO_LIMITS_OF_ITS_OWN = "submission-naming-no-limits-of-its-own"
+A_SUBMISSION_NAMING_NO_LIMITS_AT_ALL = "submission-naming-no-limits-at-all"
+A_SUBMISSION_WITH_NOTHING_TO_JUDGE_IT_AGAINST = "submission-with-nothing-to-judge-it-against"
 A_SUBMISSION_LEET_LINGO_FAILED_TO_JUDGE = "submission-leet-lingo-failed-to-judge"
 A_SUBMISSION_HELD_WHILE_THE_EXECUTOR_ANSWERS_SOMETHING_ELSE = (
     "submission-held-while-the-executor-answers-something-else"
@@ -231,24 +232,29 @@ def test_a_submission_is_judged_under_the_limits_that_arrived_with_it(
 
     executor.post(
         "/submissions",
-        json=_a_submission(
-            A_SUBMISSION_NAMING_THE_LIMITS_IT_IS_JUDGED_UNDER,
-            limits=LIMITS_SENT_WITH_THE_SUBMISSION,
-        ),
+        json=_a_submission(A_SUBMISSION_NAMING_THE_LIMITS_IT_IS_JUDGED_UNDER),
     )
 
     assert [given.limits for given in judging.was_given] == [THE_LIMITS_THAT_ARRIVE]
 
 
-def test_a_submission_naming_no_limits_is_judged_under_the_executors_own(
+def test_a_submission_naming_no_limits_is_refused_rather_than_judged_under_the_executors_own(
     executor: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     judging = _judging_that_answers(monkeypatch, JUDGED_ACROSS_THREE_TEST_CASES)
 
-    executor.post("/submissions", json=_a_submission(A_SUBMISSION_NAMING_NO_LIMITS_OF_ITS_OWN))
+    refused = executor.post(
+        "/submissions",
+        json={
+            "submission_id": A_SUBMISSION_NAMING_NO_LIMITS_AT_ALL,
+            "solution": A_SOLUTION_NOTHING_IN_THIS_FILE_EVER_RUNS,
+            "test_cases": THREE_TEST_CASES_SENT,
+        },
+    )
 
-    assert [given.limits for given in judging.was_given] == [Limits()]
+    assert refused.status_code == 422
+    assert judging.was_given == []
 
 
 def test_the_executor_answers_that_it_judged_even_when_the_verdict_is_that_leet_lingo_failed(
@@ -273,6 +279,22 @@ def test_a_payload_the_executor_cannot_read_is_refused_before_anything_is_judged
     judging = _judging_that_answers(monkeypatch, JUDGED_ACROSS_THREE_TEST_CASES)
 
     refused = executor.post("/submissions", json={"test_cases": "not a list of test cases"})
+
+    assert refused.status_code == 422
+    assert judging.was_given == []
+    assert Verdict.internal_error.value not in refused.text
+
+
+def test_a_submission_with_nothing_to_judge_it_against_is_refused_rather_than_judged(
+    executor: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    judging = _judging_that_answers(monkeypatch, JUDGED_ACROSS_THREE_TEST_CASES)
+
+    refused = executor.post(
+        "/submissions",
+        json=_a_submission(A_SUBMISSION_WITH_NOTHING_TO_JUDGE_IT_AGAINST, test_cases=[]),
+    )
 
     assert refused.status_code == 422
     assert judging.was_given == []
@@ -328,4 +350,5 @@ def _a_submission(submission_id: str, **also_sent: Any) -> dict[str, Any]:
         "submission_id": submission_id,
         "solution": A_SOLUTION_NOTHING_IN_THIS_FILE_EVER_RUNS,
         "test_cases": THREE_TEST_CASES_SENT,
+        "limits": LIMITS_SENT_WITH_THE_SUBMISSION,
     } | also_sent
