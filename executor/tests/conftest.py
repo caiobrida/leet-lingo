@@ -1,10 +1,13 @@
 import subprocess
 import textwrap
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 from executor.limits import Limits
+from executor.main import app
 from executor.sandbox import A_NAME_ONLY_OUR_CONTAINERS_CARRY, SANDBOX_IMAGE
 
 SANDBOX_BUILD_CONTEXT = Path(__file__).resolve().parent.parent / "sandbox"
@@ -74,6 +77,12 @@ def built_sandbox_image() -> None:
         check=True,
         capture_output=True,
     )
+
+
+@pytest.fixture
+def executor() -> Iterator[TestClient]:
+    with TestClient(app) as client:
+        yield client
 
 
 def containers_still_on_the_host() -> list[str]:

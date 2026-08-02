@@ -2,7 +2,8 @@ import logging
 import textwrap
 
 import pytest
-from conftest import AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN
+from conftest import AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN, RETURNS_ITS_ARGUMENT
+from fastapi.testclient import TestClient
 from prometheus_client import REGISTRY
 
 from executor import sandbox
@@ -35,6 +36,7 @@ A_SUBMISSION_COUNTED_UNDER_THE_VERDICT_IT_EARNED = "submission-counted-under-the
 A_SUBMISSION_NO_SANDBOX_IMAGE_ANSWERS = "submission-no-sandbox-image-answers"
 A_SUBMISSION_SCRAPED_BY_AN_OPERATOR = "submission-scraped-by-an-operator"
 A_SUBMISSION_FORGING_ITS_OWN_TELEMETRY = "submission-forging-its-own-telemetry"
+A_SUBMISSION_COUNTED_WHEN_IT_ARRIVED_OVER_HTTP = "submission-counted-when-it-arrived-over-http"
 
 ONE_TEST_CASE_THE_SOLUTION_GETS_WRONG = [TestCase(input=[1], expected_output=1)]
 
@@ -96,6 +98,24 @@ def test_nothing_a_solution_emits_from_inside_the_sandbox_reaches_what_an_operat
     assert judged.verdict is Verdict.wrong_answer
     assert caplog.records == []
     assert _the_verdicts_counted_since(counted_before) == {Verdict.wrong_answer}
+
+
+def test_a_verdict_is_counted_the_same_when_the_submission_arrived_over_http(
+    executor: TestClient,
+) -> None:
+    counted_before = _submissions_counted_as(Verdict.accepted)
+
+    answered = executor.post(
+        "/submissions",
+        json={
+            "submission_id": A_SUBMISSION_COUNTED_WHEN_IT_ARRIVED_OVER_HTTP,
+            "solution": RETURNS_ITS_ARGUMENT,
+            "test_cases": [{"input": [1], "expected_output": 1}],
+        },
+    )
+
+    assert answered.json()["verdict"] == Verdict.accepted.value
+    assert _submissions_counted_as(Verdict.accepted) == counted_before + 1
 
 
 def _a_series_counting(verdict: Verdict) -> str:
