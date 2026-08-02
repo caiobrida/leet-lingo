@@ -33,3 +33,11 @@ The five canonical triage roles, each label string equal to its name. See `docs/
 ### Domain docs
 
 Single-context — `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Study notes
+
+This is a learning project. Whenever an implementation lands — a ticket finished by `/implement`, or any new code written outside one — invoke the `study-notes` agent, scoped to what changed, before moving on to the next piece of work.
+
+It writes notes explaining the new code to a Node/TypeScript/Express developer: C# under `study-docs/cs/`, Python under `study-docs/python/`. See `.claude/agents/study-notes.md`.
+
+Don't run it on work that is still in progress, and don't run it twice for the same change.
