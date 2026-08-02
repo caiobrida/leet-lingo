@@ -6,7 +6,7 @@ namespace LeetLingo.Api;
 
 public class LeetLingoContext(DbContextOptions<LeetLingoContext> options) : DbContext(options)
 {
-    public const string TheDatabaseItReaches = "LeetLingo";
+    public const string TheConnectionStringItReads = "LeetLingo";
 
     public DbSet<Problem> Problems => Set<Problem>();
 
@@ -23,10 +23,11 @@ public class LeetLingoContext(DbContextOptions<LeetLingoContext> options) : DbCo
                 testCases => TestCases.AsOneDocument(testCases),
                 document => TestCases.From(document),
                 new ValueComparer<IReadOnlyList<TestCase>>(
-                    (left, right) =>
-                        TestCases.AsOneDocument(left!) == TestCases.AsOneDocument(right!),
-                    testCases => TestCases.AsOneDocument(testCases).GetHashCode(),
-                    testCases => TestCases.From(TestCases.AsOneDocument(testCases))));
+                    (left, right) => left!.SequenceEqual(right!),
+                    testCases => testCases.Aggregate(
+                        testCases.Count,
+                        (hash, testCase) => HashCode.Combine(hash, testCase)),
+                    testCases => testCases.ToList()));
 
         problems.HasData(TheSeededCatalogue.Problems);
     }

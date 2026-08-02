@@ -14,7 +14,7 @@ public static class TheSeededCatalogue
             Statement =
                 "Given a list of integers and a target, return the indices of the two numbers "
                 + "that add up to the target.\n\n"
-                + "Exactly one pair adds up to the target, and the same number may not be used "
+                + "Exactly one pair adds up to the target, and the same element may not be used "
                 + "twice. Return the two indices in ascending order.",
             FunctionSignature = "def solve(numbers: list[int], target: int) -> list[int]",
             TestCases = TestCases.From(

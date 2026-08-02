@@ -17,7 +17,7 @@ public class TheApiWithItsCatalogue : WebApplicationFactory<Program>, IAsyncLife
     {
         await postgres.StartAsync();
 
-        using var scope = Services.CreateScope();
+        await using var scope = Services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<LeetLingoContext>().Database.MigrateAsync();
     }
 
@@ -29,6 +29,6 @@ public class TheApiWithItsCatalogue : WebApplicationFactory<Program>, IAsyncLife
 
     protected override void ConfigureWebHost(IWebHostBuilder builder) =>
         builder.UseSetting(
-            $"ConnectionStrings:{LeetLingoContext.TheDatabaseItReaches}",
+            $"ConnectionStrings:{LeetLingoContext.TheConnectionStringItReads}",
             postgres.GetConnectionString());
 }

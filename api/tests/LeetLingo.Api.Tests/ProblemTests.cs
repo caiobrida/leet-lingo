@@ -58,10 +58,11 @@ public class ProblemTests(TheApiWithItsCatalogue api) : IClassFixture<TheApiWith
     [Fact]
     public async Task The_catalogue_comes_from_the_migration_and_is_the_same_on_every_fresh_database()
     {
-        using var scope = api.Services.CreateScope();
+        await using var scope = api.Services.CreateAsyncScope();
         var catalogue = scope.ServiceProvider.GetRequiredService<LeetLingoContext>();
 
         Assert.NotEmpty(await catalogue.Database.GetAppliedMigrationsAsync());
+        Assert.False(catalogue.Database.HasPendingModelChanges());
         Assert.Equal(
             TheSeededCatalogue.TwoSum,
             (await catalogue.Problems.SingleAsync(problem => problem.Slug == ASeededProblem)).Id);

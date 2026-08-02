@@ -6,9 +6,9 @@ public static class TheCatalogue
 {
     public static Task<ProblemAnswered?> ReadTheProblem(
         this LeetLingoContext catalogue,
-        string slug) =>
+        string slug,
+        CancellationToken givenUpOn) =>
         catalogue.Problems
-            .AsNoTracking()
             .Where(problem => problem.Slug == slug)
             .Select(problem => new ProblemAnswered(
                 problem.Slug,
@@ -16,5 +16,5 @@ public static class TheCatalogue
                 problem.Statement,
                 problem.FunctionSignature,
                 problem.TestCases))
-            .SingleOrDefaultAsync();
+            .SingleOrDefaultAsync(givenUpOn);
 }

@@ -61,7 +61,7 @@ namespace LeetLingo.Api.Migrations
                             Id = new Guid("8f14e45f-ceea-467a-9ba2-0f1b1a1c7d21"),
                             FunctionSignature = "def solve(numbers: list[int], target: int) -> list[int]",
                             Slug = "two-sum",
-                            Statement = "Given a list of integers and a target, return the indices of the two numbers that add up to the target.\n\nExactly one pair adds up to the target, and the same number may not be used twice. Return the two indices in ascending order.",
+                            Statement = "Given a list of integers and a target, return the indices of the two numbers that add up to the target.\n\nExactly one pair adds up to the target, and the same element may not be used twice. Return the two indices in ascending order.",
                             TestCases = "[{\"input\":[[2,7,11,15],9],\"expectedOutput\":[0,1]},{\"input\":[[3,2,4],6],\"expectedOutput\":[1,2]},{\"input\":[[3,3],6],\"expectedOutput\":[0,1]}]",
                             Title = "Two Sum"
                         });
