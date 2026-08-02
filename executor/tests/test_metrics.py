@@ -1,15 +1,13 @@
 import logging
 import textwrap
-from dataclasses import asdict
 
 import pytest
-from conftest import AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN, RETURNS_ITS_ARGUMENT
+from conftest import AN_IMAGE_THE_HOST_WAS_NEVER_GIVEN, a_submission_whose_solution_is_correct
 from fastapi.testclient import TestClient
 from prometheus_client import REGISTRY
 
 from executor import sandbox
 from executor.judging import judge
-from executor.limits import Limits
 from executor.metrics import the_metrics_an_operator_scrapes
 from executor.submission import TestCase, Verdict
 
@@ -109,12 +107,7 @@ def test_a_verdict_is_counted_the_same_when_the_submission_arrived_over_http(
 
     answered = executor.post(
         "/submissions",
-        json={
-            "submission_id": A_SUBMISSION_COUNTED_WHEN_IT_ARRIVED_OVER_HTTP,
-            "solution": RETURNS_ITS_ARGUMENT,
-            "test_cases": [{"input": [1], "expected_output": 1}],
-            "limits": asdict(Limits()),
-        },
+        json=a_submission_whose_solution_is_correct(A_SUBMISSION_COUNTED_WHEN_IT_ARRIVED_OVER_HTTP),
     )
 
     assert answered.json()["verdict"] == Verdict.accepted.value
