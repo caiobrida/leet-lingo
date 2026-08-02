@@ -1,10 +1,8 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace LeetLingo.Api.Tests;
 
-public class HealthTests(WebApplicationFactory<Program> api)
-    : IClassFixture<WebApplicationFactory<Program>>
+public class HealthTests(TheApiWithNothingBehindIt api) : IClassFixture<TheApiWithNothingBehindIt>
 {
     private const string TheApiSaysItIsUp = """{"status":"ok"}""";
 
